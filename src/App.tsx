@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
-import { ShoppingCart, Menu, X, Trash2, Package, Shirt, Gamepad2, CheckCircle, ChevronRight, MapPin, Truck, Phone, Home, Hammer, Sparkles, Tv, PenTool, Gift } from 'lucide-react';
+import { ShoppingCart, Menu, X, Trash2, Package, Shirt, Gamepad2, CheckCircle, ChevronRight, MapPin, Truck, Phone, Home, Hammer, Sparkles, Tv, PenTool, Gift, Pencil, Loader2 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
+import { GoogleGenAI } from '@google/genai';
 
 // --- Types ---
 type Category = 'plastique' | 'vetements' | 'jouets' | 'maison' | 'bricolage' | 'hygiene' | 'electronique' | 'papeterie' | 'packs';
@@ -22,65 +23,65 @@ interface CartItem {
 }
 
 // --- Data ---
-const PRODUCTS: Product[] = [
-  { id: 'p1', category: 'plastique', price: 100, nameFr: 'Bassine en Plastique', nameAr: 'حوض بلاستيك', descriptionFr: 'Grande bassine pour lessive et ménage.', descriptionAr: 'حوض كبير للغسيل', image: 'https://picsum.photos/seed/bass1/400/300' },
-  { id: 'p2', category: 'plastique', price: 100, nameFr: 'Lot de 5 Cintres', nameAr: 'مجموعة 5 علاقات', descriptionFr: 'Cintres solides de rangement.', descriptionAr: 'علاقات ملابس متينة', image: 'https://picsum.photos/seed/cint2/400/300' },
-  { id: 'p3', category: 'plastique', price: 100, nameFr: 'Boîte de Rangement', nameAr: 'صندوق تخزين', descriptionFr: 'Idéale pour organiser vos objets.', descriptionAr: 'مثالي لتنظيم أشيائك', image: 'https://picsum.photos/seed/box3/400/300' },
-  { id: 'p4', category: 'plastique', price: 100, nameFr: 'Egouttoir à Vaisselle', nameAr: 'مصفاة أطباق', descriptionFr: 'Égouttoir pratique pour cuisine.', descriptionAr: 'مصفاة عملية للمطبخ', image: 'https://picsum.photos/seed/egout4/400/300' },
-  { id: 'p5', category: 'plastique', price: 50, nameFr: 'Verre en plastique', nameAr: 'كأس بلاستيك', descriptionFr: 'Verre incassable.', descriptionAr: 'كأس بلاستيكي', image: 'https://picsum.photos/seed/verreq/400/300' },
-  { id: 'v1', category: 'vetements', price: 100, nameFr: 'T-shirt Basique', nameAr: 'تي شيرت أساسي', descriptionFr: 'T-shirt 100% coton, confortable.', descriptionAr: 'تي شيرت قطن 100٪', image: 'https://picsum.photos/seed/tshirt1/400/300' },
-  { id: 'v2', category: 'vetements', price: 100, nameFr: 'Paire de Chaussettes', nameAr: 'زوج جوارب', descriptionFr: 'Chaussettes chaudes et douces.', descriptionAr: 'جوارب دافئة ومريحة', image: 'https://picsum.photos/seed/sock2/400/300' },
-  { id: 'v3', category: 'vetements', price: 100, nameFr: 'Casquette Ajustable', nameAr: 'قبعة رياضية', descriptionFr: 'Parfaite pour l\'été.', descriptionAr: 'مثالية للصيف', image: 'https://picsum.photos/seed/casq3/400/300' },
-  { id: 'v4', category: 'vetements', price: 100, nameFr: 'Bonnet d\'Hiver', nameAr: 'قبعة شتوية', descriptionFr: 'Bonnet tricoté en laine.', descriptionAr: 'قبعة منسوجة', image: 'https://picsum.photos/seed/bonnet4/400/300' },
-  { id: 'j1', category: 'jouets', price: 100, nameFr: 'Petite Voiture Course', nameAr: 'سيارة سباق صغيرة', descriptionFr: 'Voiture en plastique.', descriptionAr: 'سيارة بلاستيكية', image: 'https://picsum.photos/seed/car1/400/300' },
-  { id: 'j2', category: 'jouets', price: 100, nameFr: 'Balle Colorée', nameAr: 'كرة ملونة', descriptionFr: 'Balle en mousse rebondissante.', descriptionAr: 'كرة نطاطة', image: 'https://picsum.photos/seed/ball2/400/300' },
-  { id: 'j3', category: 'jouets', price: 100, nameFr: 'Corde à Sauter', nameAr: 'حبل قفز', descriptionFr: 'Corde avec poignées.', descriptionAr: 'حبل بمقابض', image: 'https://picsum.photos/seed/rope3/400/300' },
-  { id: 'j4', category: 'jouets', price: 100, nameFr: 'Mini Puzzle Animaux', nameAr: 'بازل حيوانات', descriptionFr: 'Puzzle éducatif pour enfants.', descriptionAr: 'لغز تعليمي', image: 'https://picsum.photos/seed/puz4/400/300' },
-  { id: 'm1', category: 'maison', price: 100, nameFr: 'Sucrier', nameAr: 'سكرية', descriptionFr: 'Sucrier élégant.', descriptionAr: 'سكرية أنيقة', image: 'https://picsum.photos/seed/sucrier/400/300' },
-  { id: 'm2', category: 'maison', price: 100, nameFr: 'Fouet de cuisine', nameAr: 'خفاقة مطبخ', descriptionFr: 'Pour vos préparations.', descriptionAr: 'لتحضير الطعام', image: 'https://picsum.photos/seed/fouet/400/300' },
-  { id: 'm3', category: 'maison', price: 100, nameFr: 'Insecticide (Litox)', nameAr: 'مبيد حشرات ليتوكس', descriptionFr: 'Aérosol.', descriptionAr: 'مضاد للحشرات', image: 'https://picsum.photos/seed/litox/400/300' },
-  { id: 'm4', category: 'maison', price: 100, nameFr: 'Briquet', nameAr: 'ولاعة / بريكي', descriptionFr: 'Briquet de poche.', descriptionAr: 'ولاعة جيب', image: 'https://picsum.photos/seed/briquet/400/300' },
-  { id: 'm5', category: 'maison', price: 50, nameFr: 'Couteau de cuisine (Standard)', nameAr: 'سكين عادي', descriptionFr: 'Petit couteau.', descriptionAr: 'سكين صغير', image: 'https://picsum.photos/seed/couteauun/400/300' },
-  { id: 'm6', category: 'maison', price: 100, nameFr: 'Couteau de cuisine (Moyen)', nameAr: 'سكين متوسط', descriptionFr: 'Tranchant moyen.', descriptionAr: 'جودة جيدة', image: 'https://picsum.photos/seed/couteaudeux/400/300' },
-  { id: 'm7', category: 'maison', price: 150, nameFr: 'Couteau de cuisine (Pro)', nameAr: 'سكين ممتاز', descriptionFr: 'Lame très tranchante.', descriptionAr: 'شفرة حادة صلبة', image: 'https://picsum.photos/seed/couteautrois/400/300' },
-  { id: 'b1', category: 'bricolage', price: 100, nameFr: 'Lampe LED 9W', nameAr: 'مصباح 9 واط', descriptionFr: 'Ampoule économique.', descriptionAr: 'مصباح اقتصادي', image: 'https://picsum.photos/seed/lampe9/400/300' },
-  { id: 'b2', category: 'bricolage', price: 200, nameFr: 'Lampe LED 18W', nameAr: 'مصباح 18 واط', descriptionFr: 'Éclairage puissant.', descriptionAr: 'إضاءة قوية', image: 'https://picsum.photos/seed/lampe18/400/300' },
-  { id: 'b3', category: 'bricolage', price: 600, nameFr: 'Pelle de chantier', nameAr: 'رفش / بالة', descriptionFr: 'Pelle solide.', descriptionAr: 'رفش صلب', image: 'https://picsum.photos/seed/pelle/400/300' },
-  { id: 'b4', category: 'bricolage', price: 500, nameFr: 'Scie manuelle', nameAr: 'منشار يدوي', descriptionFr: 'Scie pour bois/métal.', descriptionAr: 'منشار احترافي', image: 'https://picsum.photos/seed/scie/400/300' },
-  { id: 'h1', category: 'hygiene', price: 100, nameFr: 'Brosse à dents', nameAr: 'فرشاة أسنان', descriptionFr: 'Poils souples.', descriptionAr: 'شعيرات ناعمة', image: 'https://picsum.photos/seed/brosse/400/300' },
-  { id: 'h2', category: 'hygiene', price: 100, nameFr: 'Dentifrice (Petit)', nameAr: 'معجون أسنان صغير', descriptionFr: 'Volume standard.', descriptionAr: 'حجم عادي', image: 'https://picsum.photos/seed/dentifricesmall/400/300' },
-  { id: 'h3', category: 'hygiene', price: 200, nameFr: 'Dentifrice (Grand)', nameAr: 'معجون أسنان كبير', descriptionFr: 'Grand volume familial.', descriptionAr: 'حجم عائلي كبير', image: 'https://picsum.photos/seed/dentifricebig/400/300' },
-  { id: 'v5', category: 'vetements', price: 200, nameFr: 'Chemise Classique', nameAr: 'قميص كلاسيكي', descriptionFr: 'Chemise élégante.', descriptionAr: 'قميص أنيق', image: 'https://picsum.photos/seed/chemise/400/300' },
-  { id: 'v6', category: 'vetements', price: 100, nameFr: 'Casquette', nameAr: 'كاسكيطة', descriptionFr: 'Casquette classique.', descriptionAr: 'قبعة صيفية', image: 'https://picsum.photos/seed/casquettesecond/400/300' },
-  { id: 'm8', category: 'maison', price: 100, nameFr: 'Éponge métallique (3 pcs)', nameAr: 'حبل غسل الأواني', descriptionFr: 'Lot de 3 pour la vaisselle.', descriptionAr: '3 بـ 100 دج', image: 'https://picsum.photos/seed/sponge/400/300' },
-  { id: 'p6', category: 'plastique', price: 50, nameFr: 'Pelle en plastique (Petit)', nameAr: 'مجرفة بلاستيك (صغير)', descriptionFr: 'Petite pelle.', descriptionAr: 'مجرفة صغيرة', image: 'https://picsum.photos/seed/pelleplast1/400/300' },
-  { id: 'p7', category: 'plastique', price: 75, nameFr: 'Pelle en plastique (Moyen)', nameAr: 'مجرفة بلاستيك (متوسط)', descriptionFr: 'Taille moyenne.', descriptionAr: 'مجرفة متوسطة', image: 'https://picsum.photos/seed/pelleplast2/400/300' },
-  { id: 'p8', category: 'plastique', price: 100, nameFr: 'Pelle en plastique (Grand)', nameAr: 'مجرفة بلاستيك (كبير)', descriptionFr: 'Grande pelle robuste.', descriptionAr: 'مجرفة كبيرة', image: 'https://picsum.photos/seed/pelleplast3/400/300' },
-  { id: 'h4', category: 'hygiene', price: 50, nameFr: 'Coton-tige (Petit Modele)', nameAr: 'قطن الأذن (صغير)', descriptionFr: 'Petite boîte.', descriptionAr: 'حجم صغير', image: 'https://picsum.photos/seed/coton1/400/300' },
-  { id: 'h5', category: 'hygiene', price: 100, nameFr: 'Coton-tige (Grand Modele)', nameAr: 'قطن الأذن (كبير)', descriptionFr: 'Grande boîte.', descriptionAr: 'حجم كبير', image: 'https://picsum.photos/seed/coton2/400/300' },
-  { id: 'm9', category: 'maison', price: 50, nameFr: 'Cuillère (Petit Modele)', nameAr: 'ملعقة (صغيرة)', descriptionFr: 'Pour dessert ou café.', descriptionAr: 'للتحلية أو القهوة', image: 'https://picsum.photos/seed/cuil1/400/300' },
-  { id: 'm10', category: 'maison', price: 100, nameFr: 'Cuillère (Grand Modele)', nameAr: 'ملعقة (كبيرة)', descriptionFr: 'Pour soupe.', descriptionAr: 'للشوربة', image: 'https://picsum.photos/seed/cuil2/400/300' },
-  { id: 'e1', category: 'electronique', price: 3500, nameFr: 'Télévision LG Ancien Modèle', nameAr: 'تلفاز LG قديم', descriptionFr: 'Téléphone LG LCD/Plasma ancien modèle.', descriptionAr: 'تلفاز LG تصميم قديم', image: 'https://picsum.photos/seed/lgtv/400/300' },
-  { id: 'm11', category: 'maison', price: 100, nameFr: 'Corbeille à pain', nameAr: 'سلة خبز', descriptionFr: 'Corbeille en plastique pour le pain.', descriptionAr: 'سلة خبز بلاستيكية', image: 'https://picsum.photos/seed/corbeille/400/300' },
-  { id: 'm12', category: 'maison', price: 100, nameFr: 'Économe de cuisine', nameAr: 'قشارة خضار', descriptionFr: 'Pour éplucher vos légumes facilement.', descriptionAr: 'لتقشير الخضار', image: 'https://picsum.photos/seed/econome/400/300' },
-  { id: 'm13', category: 'maison', price: 100, nameFr: 'Serpillère (Nechaf)', nameAr: 'نشاف الأرض', descriptionFr: 'Serpillère absorbante pour le sol.', descriptionAr: 'نشاف لتنظيف الأرض', image: 'https://picsum.photos/seed/nechaf/400/300' },
-  { id: 'pa1', category: 'papeterie', price: 50, nameFr: 'Stylo Marqueur', nameAr: 'قلم ماركر', descriptionFr: 'Marqueur de couleur.', descriptionAr: 'قلم ماركر', image: 'https://picsum.photos/seed/marqueur/400/300' },
-  { id: 'b5', category: 'bricolage', price: 50, nameFr: 'Cutter', nameAr: 'كيتور', descriptionFr: 'Outil de coupe tranchant.', descriptionAr: 'قاطع (كيتور)', image: 'https://picsum.photos/seed/cutter/400/300' },
-  { id: 'm14', category: 'maison', price: 50, nameFr: 'Passoire (Petit)', nameAr: 'صفاية صغيرة', descriptionFr: 'Petite passoire de cuisine.', descriptionAr: 'صفاية حجم صغير', image: 'https://picsum.photos/seed/passoire/400/300' },
-  { id: 'm15', category: 'maison', price: 100, nameFr: 'Râpe à légumes', nameAr: 'سكرفاج', descriptionFr: 'Râpe de cuisine.', descriptionAr: 'مبشرة خضار / سكرفاج', image: 'https://picsum.photos/seed/rape/400/300' },
-  { id: 'm16', category: 'maison', price: 100, nameFr: 'Corde à linge', nameAr: 'حبل غسيل', descriptionFr: 'Corde pour ranger les vêtements.', descriptionAr: 'حبل نشر الملابس', image: 'https://picsum.photos/seed/corde/400/300' },
-  { id: 'j5', category: 'jouets', price: 100, nameFr: 'Jouet Fille', nameAr: 'لعبة بنات', descriptionFr: 'Jouet pour fille (poupée, dînette...).', descriptionAr: 'لعبة بنات', image: 'https://picsum.photos/seed/jouetf/400/300' },
-  { id: 'j6', category: 'jouets', price: 100, nameFr: 'Jouet Enfant', nameAr: 'لعبة أطفال', descriptionFr: 'Jouet divertissant pour enfant.', descriptionAr: 'لعبة أطفال متنوعة', image: 'https://picsum.photos/seed/jouete/400/300' },
-  { id: 'm17', category: 'maison', price: 100, nameFr: 'Pinces à linge (Mssak)', nameAr: 'مساك حوايج', descriptionFr: 'Lot de pinces pour vêtements.', descriptionAr: 'مجموعة مساك', image: 'https://picsum.photos/seed/mssak/400/300' },
-  { id: 'm18', category: 'maison', price: 100, nameFr: 'Brosse de nettoyage (Chita)', nameAr: 'شيتة تنظيف', descriptionFr: 'Brosse rugueuse de nettoyage.', descriptionAr: 'شيتة', image: 'https://picsum.photos/seed/chita/400/300' },
-  { id: 'm19', category: 'maison', price: 100, nameFr: 'Balai', nameAr: 'بالي (مكنسة)', descriptionFr: 'Balai classique pour sol.', descriptionAr: 'مكنسة تنظيف', image: 'https://picsum.photos/seed/balai/400/300' },
-  { id: 'm20', category: 'maison', price: 100, nameFr: 'Manche à Balai / Frottoir', nameAr: 'عصا بالي / فواطوار', descriptionFr: 'Manche robuste pour balai.', descriptionAr: 'عصا مكنسة', image: 'https://picsum.photos/seed/manche/400/300' },
-  { id: 'm21', category: 'maison', price: 100, nameFr: 'Serviette Viscose (30x40)', nameAr: 'منديل فيسكوز 30/40', descriptionFr: 'Serviette multi-usage absorbante.', descriptionAr: 'منديل تنظيف فيسكوز', image: 'https://picsum.photos/seed/viscose/400/300' },
-  { id: 'm22', category: 'maison', price: 100, nameFr: 'Torchon (Grand Modèle)', nameAr: 'طرشون كبير', descriptionFr: 'Grand torchon de cuisine.', descriptionAr: 'طرشون مطبخ كبير', image: 'https://picsum.photos/seed/torchongm/400/300' },
-  { id: 'm23', category: 'maison', price: 200, nameFr: 'Lot de 6 Torchons (Petit)', nameAr: '6 طراشن صغار', descriptionFr: '6 pièces petit format.', descriptionAr: '6 قطع حجم صغير', image: 'https://picsum.photos/seed/torchonpm/400/300' },
-  { id: 'h6', category: 'hygiene', price: 150, nameFr: 'Parfum Lorage', nameAr: 'عطر لوراج', descriptionFr: 'Déodorant / Parfum Lorage.', descriptionAr: 'عطر منعش', image: 'https://picsum.photos/seed/lorage/400/300' },
-  { id: 'pk1', category: 'packs', price: 300, nameFr: 'Pack Ménage (Promo)', nameAr: 'باك (مساك، فليتوكس، بالي، حبل)', descriptionFr: 'Pinces, Insecticide, Balai, Corde à linge.', descriptionAr: 'مجموعة تنظيف اقتصادية', image: 'https://picsum.photos/seed/packmenage/400/300' },
-  { id: 'p9', category: 'plastique', price: 100, nameFr: 'Chaise en plastique', nameAr: 'كرسي بلاستيك', descriptionFr: 'Tabouret / chaise en plastique.', descriptionAr: 'كرسي بلاستيكي صغير', image: 'https://picsum.photos/seed/chaiseplast/400/300' }
+const INITIAL_PRODUCTS: Product[] = [
+  { id: 'p1', category: 'plastique', price: 100, nameFr: 'Bassine en Plastique', nameAr: 'حوض بلاستيك', descriptionFr: 'Grande bassine pour lessive et ménage.', descriptionAr: 'حوض كبير للغسيل', image: 'https://placehold.co/400x300/e2e8f0/334155?text=Bassine%20en%20Plastique' },
+  { id: 'p2', category: 'plastique', price: 100, nameFr: 'Lot de 5 Cintres', nameAr: 'مجموعة 5 علاقات', descriptionFr: 'Cintres solides de rangement.', descriptionAr: 'علاقات ملابس متينة', image: 'https://placehold.co/400x300/e2e8f0/334155?text=Lot%20de%205%20Cintres' },
+  { id: 'p3', category: 'plastique', price: 100, nameFr: 'Boîte de Rangement', nameAr: 'صندوق تخزين', descriptionFr: 'Idéale pour organiser vos objets.', descriptionAr: 'مثالي لتنظيم أشيائك', image: 'https://placehold.co/400x300/e2e8f0/334155?text=Bo%C3%AEte%20de%20Rangement' },
+  { id: 'p4', category: 'plastique', price: 100, nameFr: 'Egouttoir à Vaisselle', nameAr: 'مصفاة أطباق', descriptionFr: 'Égouttoir pratique pour cuisine.', descriptionAr: 'مصفاة عملية للمطبخ', image: 'https://placehold.co/400x300/e2e8f0/334155?text=Egouttoir%20%C3%A0%20Vaisselle' },
+  { id: 'p5', category: 'plastique', price: 50, nameFr: 'Verre en plastique', nameAr: 'كأس بلاستيك', descriptionFr: 'Verre incassable.', descriptionAr: 'كأس بلاستيكي', image: 'https://placehold.co/400x300/e2e8f0/334155?text=Verre%20en%20plastique' },
+  { id: 'v1', category: 'vetements', price: 100, nameFr: 'T-shirt Basique', nameAr: 'تي شيرت أساسي', descriptionFr: 'T-shirt 100% coton, confortable.', descriptionAr: 'تي شيرت قطن 100٪', image: 'https://placehold.co/400x300/e2e8f0/334155?text=T-shirt%20Basique' },
+  { id: 'v2', category: 'vetements', price: 100, nameFr: 'Paire de Chaussettes', nameAr: 'زوج جوارب', descriptionFr: 'Chaussettes chaudes et douces.', descriptionAr: 'جوارب دافئة ومريحة', image: 'https://placehold.co/400x300/e2e8f0/334155?text=Paire%20de%20Chaussettes' },
+  { id: 'v3', category: 'vetements', price: 100, nameFr: 'Casquette Ajustable', nameAr: 'قبعة رياضية', descriptionFr: 'Parfaite pour l\'été.', descriptionAr: 'مثالية للصيف', image: 'https://placehold.co/400x300/e2e8f0/334155?text=Casquette%20Ajustable' },
+  { id: 'v4', category: 'vetements', price: 100, nameFr: 'Bonnet d\'Hiver', nameAr: 'قبعة شتوية', descriptionFr: 'Bonnet tricoté en laine.', descriptionAr: 'قبعة منسوجة', image: 'https://placehold.co/400x300/e2e8f0/334155?text=Bonnet%20d%5C' },
+  { id: 'j1', category: 'jouets', price: 100, nameFr: 'Petite Voiture Course', nameAr: 'سيارة سباق صغيرة', descriptionFr: 'Voiture en plastique.', descriptionAr: 'سيارة بلاستيكية', image: 'https://placehold.co/400x300/e2e8f0/334155?text=Petite%20Voiture%20Course' },
+  { id: 'j2', category: 'jouets', price: 100, nameFr: 'Balle Colorée', nameAr: 'كرة ملونة', descriptionFr: 'Balle en mousse rebondissante.', descriptionAr: 'كرة نطاطة', image: 'https://placehold.co/400x300/e2e8f0/334155?text=Balle%20Color%C3%A9e' },
+  { id: 'j3', category: 'jouets', price: 100, nameFr: 'Corde à Sauter', nameAr: 'حبل قفز', descriptionFr: 'Corde avec poignées.', descriptionAr: 'حبل بمقابض', image: 'https://placehold.co/400x300/e2e8f0/334155?text=Corde%20%C3%A0%20Sauter' },
+  { id: 'j4', category: 'jouets', price: 100, nameFr: 'Mini Puzzle Animaux', nameAr: 'بازل حيوانات', descriptionFr: 'Puzzle éducatif pour enfants.', descriptionAr: 'لغز تعليمي', image: 'https://placehold.co/400x300/e2e8f0/334155?text=Mini%20Puzzle%20Animaux' },
+  { id: 'm1', category: 'maison', price: 100, nameFr: 'Sucrier', nameAr: 'سكرية', descriptionFr: 'Sucrier élégant.', descriptionAr: 'سكرية أنيقة', image: 'https://placehold.co/400x300/e2e8f0/334155?text=Sucrier' },
+  { id: 'm2', category: 'maison', price: 100, nameFr: 'Fouet de cuisine', nameAr: 'خفاقة مطبخ', descriptionFr: 'Pour vos préparations.', descriptionAr: 'لتحضير الطعام', image: 'https://placehold.co/400x300/e2e8f0/334155?text=Fouet%20de%20cuisine' },
+  { id: 'm3', category: 'maison', price: 100, nameFr: 'Insecticide (Litox)', nameAr: 'مبيد حشرات ليتوكس', descriptionFr: 'Aérosol.', descriptionAr: 'مضاد للحشرات', image: 'https://placehold.co/400x300/e2e8f0/334155?text=Insecticide%20(Litox)' },
+  { id: 'm4', category: 'maison', price: 100, nameFr: 'Briquet', nameAr: 'ولاعة / بريكي', descriptionFr: 'Briquet de poche.', descriptionAr: 'ولاعة جيب', image: 'https://placehold.co/400x300/e2e8f0/334155?text=Briquet' },
+  { id: 'm5', category: 'maison', price: 50, nameFr: 'Couteau de cuisine (Standard)', nameAr: 'سكين عادي', descriptionFr: 'Petit couteau.', descriptionAr: 'سكين صغير', image: 'https://placehold.co/400x300/e2e8f0/334155?text=Couteau%20de%20cuisine%20(Standard)' },
+  { id: 'm6', category: 'maison', price: 100, nameFr: 'Couteau de cuisine (Moyen)', nameAr: 'سكين متوسط', descriptionFr: 'Tranchant moyen.', descriptionAr: 'جودة جيدة', image: 'https://placehold.co/400x300/e2e8f0/334155?text=Couteau%20de%20cuisine%20(Moyen)' },
+  { id: 'm7', category: 'maison', price: 150, nameFr: 'Couteau de cuisine (Pro)', nameAr: 'سكين ممتاز', descriptionFr: 'Lame très tranchante.', descriptionAr: 'شفرة حادة صلبة', image: 'https://placehold.co/400x300/e2e8f0/334155?text=Couteau%20de%20cuisine%20(Pro)' },
+  { id: 'b1', category: 'bricolage', price: 100, nameFr: 'Lampe LED 9W', nameAr: 'مصباح 9 واط', descriptionFr: 'Ampoule économique.', descriptionAr: 'مصباح اقتصادي', image: 'https://placehold.co/400x300/e2e8f0/334155?text=Lampe%20LED%209W' },
+  { id: 'b2', category: 'bricolage', price: 200, nameFr: 'Lampe LED 18W', nameAr: 'مصباح 18 واط', descriptionFr: 'Éclairage puissant.', descriptionAr: 'إضاءة قوية', image: 'https://placehold.co/400x300/e2e8f0/334155?text=Lampe%20LED%2018W' },
+  { id: 'b3', category: 'bricolage', price: 600, nameFr: 'Pelle de chantier', nameAr: 'رفش / بالة', descriptionFr: 'Pelle solide.', descriptionAr: 'رفش صلب', image: 'https://placehold.co/400x300/e2e8f0/334155?text=Pelle%20de%20chantier' },
+  { id: 'b4', category: 'bricolage', price: 500, nameFr: 'Scie manuelle', nameAr: 'منشار يدوي', descriptionFr: 'Scie pour bois/métal.', descriptionAr: 'منشار احترافي', image: 'https://placehold.co/400x300/e2e8f0/334155?text=Scie%20manuelle' },
+  { id: 'h1', category: 'hygiene', price: 100, nameFr: 'Brosse à dents', nameAr: 'فرشاة أسنان', descriptionFr: 'Poils souples.', descriptionAr: 'شعيرات ناعمة', image: 'https://placehold.co/400x300/e2e8f0/334155?text=Brosse%20%C3%A0%20dents' },
+  { id: 'h2', category: 'hygiene', price: 100, nameFr: 'Dentifrice (Petit)', nameAr: 'معجون أسنان صغير', descriptionFr: 'Volume standard.', descriptionAr: 'حجم عادي', image: 'https://placehold.co/400x300/e2e8f0/334155?text=Dentifrice%20(Petit)' },
+  { id: 'h3', category: 'hygiene', price: 200, nameFr: 'Dentifrice (Grand)', nameAr: 'معجون أسنان كبير', descriptionFr: 'Grand volume familial.', descriptionAr: 'حجم عائلي كبير', image: 'https://placehold.co/400x300/e2e8f0/334155?text=Dentifrice%20(Grand)' },
+  { id: 'v5', category: 'vetements', price: 200, nameFr: 'Chemise Classique', nameAr: 'قميص كلاسيكي', descriptionFr: 'Chemise élégante.', descriptionAr: 'قميص أنيق', image: 'https://placehold.co/400x300/e2e8f0/334155?text=Chemise%20Classique' },
+  { id: 'v6', category: 'vetements', price: 100, nameFr: 'Casquette', nameAr: 'كاسكيطة', descriptionFr: 'Casquette classique.', descriptionAr: 'قبعة صيفية', image: 'https://placehold.co/400x300/e2e8f0/334155?text=Casquette' },
+  { id: 'm8', category: 'maison', price: 100, nameFr: 'Éponge métallique (3 pcs)', nameAr: 'حبل غسل الأواني', descriptionFr: 'Lot de 3 pour la vaisselle.', descriptionAr: '3 بـ 100 دج', image: 'https://placehold.co/400x300/e2e8f0/334155?text=%C3%89ponge%20m%C3%A9tallique%20(3%20pcs)' },
+  { id: 'p6', category: 'plastique', price: 50, nameFr: 'Pelle en plastique (Petit)', nameAr: 'مجرفة بلاستيك (صغير)', descriptionFr: 'Petite pelle.', descriptionAr: 'مجرفة صغيرة', image: 'https://placehold.co/400x300/e2e8f0/334155?text=Pelle%20en%20plastique%20(Petit)' },
+  { id: 'p7', category: 'plastique', price: 75, nameFr: 'Pelle en plastique (Moyen)', nameAr: 'مجرفة بلاستيك (متوسط)', descriptionFr: 'Taille moyenne.', descriptionAr: 'مجرفة متوسطة', image: 'https://placehold.co/400x300/e2e8f0/334155?text=Pelle%20en%20plastique%20(Moyen)' },
+  { id: 'p8', category: 'plastique', price: 100, nameFr: 'Pelle en plastique (Grand)', nameAr: 'مجرفة بلاستيك (كبير)', descriptionFr: 'Grande pelle robuste.', descriptionAr: 'مجرفة كبيرة', image: 'https://placehold.co/400x300/e2e8f0/334155?text=Pelle%20en%20plastique%20(Grand)' },
+  { id: 'h4', category: 'hygiene', price: 50, nameFr: 'Coton-tige (Petit Modele)', nameAr: 'قطن الأذن (صغير)', descriptionFr: 'Petite boîte.', descriptionAr: 'حجم صغير', image: 'https://placehold.co/400x300/e2e8f0/334155?text=Coton-tige%20(Petit%20Modele)' },
+  { id: 'h5', category: 'hygiene', price: 100, nameFr: 'Coton-tige (Grand Modele)', nameAr: 'قطن الأذن (كبير)', descriptionFr: 'Grande boîte.', descriptionAr: 'حجم كبير', image: 'https://placehold.co/400x300/e2e8f0/334155?text=Coton-tige%20(Grand%20Modele)' },
+  { id: 'm9', category: 'maison', price: 50, nameFr: 'Cuillère (Petit Modele)', nameAr: 'ملعقة (صغيرة)', descriptionFr: 'Pour dessert ou café.', descriptionAr: 'للتحلية أو القهوة', image: 'https://placehold.co/400x300/e2e8f0/334155?text=Cuill%C3%A8re%20(Petit%20Modele)' },
+  { id: 'm10', category: 'maison', price: 100, nameFr: 'Cuillère (Grand Modele)', nameAr: 'ملعقة (كبيرة)', descriptionFr: 'Pour soupe.', descriptionAr: 'للشوربة', image: 'https://placehold.co/400x300/e2e8f0/334155?text=Cuill%C3%A8re%20(Grand%20Modele)' },
+  { id: 'e1', category: 'electronique', price: 3500, nameFr: 'Télévision LG Ancien Modèle', nameAr: 'تلفاز LG قديم', descriptionFr: 'Téléphone LG LCD/Plasma ancien modèle.', descriptionAr: 'تلفاز LG تصميم قديم', image: 'https://placehold.co/400x300/e2e8f0/334155?text=T%C3%A9l%C3%A9vision%20LG%20Ancien%20Mod%C3%A8le' },
+  { id: 'm11', category: 'maison', price: 100, nameFr: 'Corbeille à pain', nameAr: 'سلة خبز', descriptionFr: 'Corbeille en plastique pour le pain.', descriptionAr: 'سلة خبز بلاستيكية', image: 'https://placehold.co/400x300/e2e8f0/334155?text=Corbeille%20%C3%A0%20pain' },
+  { id: 'm12', category: 'maison', price: 100, nameFr: 'Économe de cuisine', nameAr: 'قشارة خضار', descriptionFr: 'Pour éplucher vos légumes facilement.', descriptionAr: 'لتقشير الخضار', image: 'https://placehold.co/400x300/e2e8f0/334155?text=%C3%89conome%20de%20cuisine' },
+  { id: 'm13', category: 'maison', price: 100, nameFr: 'Serpillère (Nechaf)', nameAr: 'نشاف الأرض', descriptionFr: 'Serpillère absorbante pour le sol.', descriptionAr: 'نشاف لتنظيف الأرض', image: 'https://placehold.co/400x300/e2e8f0/334155?text=Serpill%C3%A8re%20(Nechaf)' },
+  { id: 'pa1', category: 'papeterie', price: 50, nameFr: 'Stylo Marqueur', nameAr: 'قلم ماركر', descriptionFr: 'Marqueur de couleur.', descriptionAr: 'قلم ماركر', image: 'https://placehold.co/400x300/e2e8f0/334155?text=Stylo%20Marqueur' },
+  { id: 'b5', category: 'bricolage', price: 50, nameFr: 'Cutter', nameAr: 'كيتور', descriptionFr: 'Outil de coupe tranchant.', descriptionAr: 'قاطع (كيتور)', image: 'https://placehold.co/400x300/e2e8f0/334155?text=Cutter' },
+  { id: 'm14', category: 'maison', price: 50, nameFr: 'Passoire (Petit)', nameAr: 'صفاية صغيرة', descriptionFr: 'Petite passoire de cuisine.', descriptionAr: 'صفاية حجم صغير', image: 'https://placehold.co/400x300/e2e8f0/334155?text=Passoire%20(Petit)' },
+  { id: 'm15', category: 'maison', price: 100, nameFr: 'Râpe à légumes', nameAr: 'سكرفاج', descriptionFr: 'Râpe de cuisine.', descriptionAr: 'مبشرة خضار / سكرفاج', image: 'https://placehold.co/400x300/e2e8f0/334155?text=R%C3%A2pe%20%C3%A0%20l%C3%A9gumes' },
+  { id: 'm16', category: 'maison', price: 100, nameFr: 'Corde à linge', nameAr: 'حبل غسيل', descriptionFr: 'Corde pour ranger les vêtements.', descriptionAr: 'حبل نشر الملابس', image: 'https://placehold.co/400x300/e2e8f0/334155?text=Corde%20%C3%A0%20linge' },
+  { id: 'j5', category: 'jouets', price: 100, nameFr: 'Jouet Fille', nameAr: 'لعبة بنات', descriptionFr: 'Jouet pour fille (poupée, dînette...).', descriptionAr: 'لعبة بنات', image: 'https://placehold.co/400x300/e2e8f0/334155?text=Jouet%20Fille' },
+  { id: 'j6', category: 'jouets', price: 100, nameFr: 'Jouet Enfant', nameAr: 'لعبة أطفال', descriptionFr: 'Jouet divertissant pour enfant.', descriptionAr: 'لعبة أطفال متنوعة', image: 'https://placehold.co/400x300/e2e8f0/334155?text=Jouet%20Enfant' },
+  { id: 'm17', category: 'maison', price: 100, nameFr: 'Pinces à linge (Mssak)', nameAr: 'مساك حوايج', descriptionFr: 'Lot de pinces pour vêtements.', descriptionAr: 'مجموعة مساك', image: 'https://placehold.co/400x300/e2e8f0/334155?text=Pinces%20%C3%A0%20linge%20(Mssak)' },
+  { id: 'm18', category: 'maison', price: 100, nameFr: 'Brosse de nettoyage (Chita)', nameAr: 'شيتة تنظيف', descriptionFr: 'Brosse rugueuse de nettoyage.', descriptionAr: 'شيتة', image: 'https://placehold.co/400x300/e2e8f0/334155?text=Brosse%20de%20nettoyage%20(Chita)' },
+  { id: 'm19', category: 'maison', price: 100, nameFr: 'Balai', nameAr: 'بالي (مكنسة)', descriptionFr: 'Balai classique pour sol.', descriptionAr: 'مكنسة تنظيف', image: 'https://placehold.co/400x300/e2e8f0/334155?text=Balai' },
+  { id: 'm20', category: 'maison', price: 100, nameFr: 'Manche à Balai / Frottoir', nameAr: 'عصا بالي / فواطوار', descriptionFr: 'Manche robuste pour balai.', descriptionAr: 'عصا مكنسة', image: 'https://placehold.co/400x300/e2e8f0/334155?text=Manche%20%C3%A0%20Balai%20%2F%20Frottoir' },
+  { id: 'm21', category: 'maison', price: 100, nameFr: 'Serviette Viscose (30x40)', nameAr: 'منديل فيسكوز 30/40', descriptionFr: 'Serviette multi-usage absorbante.', descriptionAr: 'منديل تنظيف فيسكوز', image: 'https://placehold.co/400x300/e2e8f0/334155?text=Serviette%20Viscose%20(30x40)' },
+  { id: 'm22', category: 'maison', price: 100, nameFr: 'Torchon (Grand Modèle)', nameAr: 'طرشون كبير', descriptionFr: 'Grand torchon de cuisine.', descriptionAr: 'طرشون مطبخ كبير', image: 'https://placehold.co/400x300/e2e8f0/334155?text=Torchon%20(Grand%20Mod%C3%A8le)' },
+  { id: 'm23', category: 'maison', price: 200, nameFr: 'Lot de 6 Torchons (Petit)', nameAr: '6 طراشن صغار', descriptionFr: '6 pièces petit format.', descriptionAr: '6 قطع حجم صغير', image: 'https://placehold.co/400x300/e2e8f0/334155?text=Lot%20de%206%20Torchons%20(Petit)' },
+  { id: 'h6', category: 'hygiene', price: 150, nameFr: 'Parfum Lorage', nameAr: 'عطر لوراج', descriptionFr: 'Déodorant / Parfum Lorage.', descriptionAr: 'عطر منعش', image: 'https://placehold.co/400x300/e2e8f0/334155?text=Parfum%20Lorage' },
+  { id: 'pk1', category: 'packs', price: 300, nameFr: 'Pack Ménage (Promo)', nameAr: 'باك (مساك، فليتوكس، بالي، حبل)', descriptionFr: 'Pinces, Insecticide, Balai, Corde à linge.', descriptionAr: 'مجموعة تنظيف اقتصادية', image: 'https://placehold.co/400x300/e2e8f0/334155?text=Pack%20M%C3%A9nage%20(Promo)' },
+  { id: 'p9', category: 'plastique', price: 100, nameFr: 'Chaise en plastique', nameAr: 'كرسي بلاستيك', descriptionFr: 'Tabouret / chaise en plastique.', descriptionAr: 'كرسي بلاستيكي صغير', image: 'https://placehold.co/400x300/e2e8f0/334155?text=Chaise%20en%20plastique' }
 ];
 
 const CATEGORIES_LIST = [
@@ -97,10 +98,17 @@ const CATEGORIES_LIST = [
 
 // --- Sub-components ---
 
-const ProductCard = ({ product, onAdd }: { product: Product, onAdd: (p: Product) => void }) => (
-  <div className="bg-theme-secondary rounded-[12px] border border-theme-border shadow-[0_4px_12px_rgba(0,0,0,0.05)] p-[12px] flex flex-col gap-[8px] transition-transform hover:-translate-y-1">
-    <div className="h-[100px] bg-[#f0f2f0] rounded-[8px] flex items-center justify-center overflow-hidden shrink-0">
+const ProductCard = ({ product, onAdd, onEditImage }: { product: Product, onAdd: (p: Product) => void, onEditImage: (p: Product) => void }) => (
+  <div className="bg-theme-secondary rounded-[12px] border border-theme-border shadow-[0_4px_12px_rgba(0,0,0,0.05)] p-[12px] flex flex-col gap-[8px] transition-transform hover:-translate-y-1 relative group">
+    <div className="h-[100px] bg-[#f0f2f0] rounded-[8px] flex items-center justify-center overflow-hidden shrink-0 relative">
       <img src={product.image} alt={product.nameFr} className="w-full h-full object-cover" referrerPolicy="no-referrer" />
+      <button 
+        onClick={(e) => { e.stopPropagation(); onEditImage(product); }}
+        className="absolute top-2 right-2 w-8 h-8 bg-white/80 backdrop-blur rounded-full flex items-center justify-center text-theme-text shadow-sm opacity-0 group-hover:opacity-100 transition-opacity hover:bg-white"
+        title="Éditer l'image avec l'IA"
+      >
+        <Pencil size={14} />
+      </button>
     </div>
     <div className="flex flex-col flex-grow">
       <div className="text-[14px] font-semibold text-theme-text">{product.nameFr}</div>
@@ -205,6 +213,14 @@ export default function App() {
   const [isCartOpen, setIsCartOpen] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
+  // Data state
+  const [products, setProducts] = useState<Product[]>(INITIAL_PRODUCTS);
+
+  // Image editing state
+  const [editingProduct, setEditingProduct] = useState<Product | null>(null);
+  const [imagePrompt, setImagePrompt] = useState<string>('');
+  const [isGenerating, setIsGenerating] = useState(false);
+
   const addToCart = (product: Product) => {
     setCart(prev => {
       const existing = prev.find(item => item.product.id === product.id);
@@ -233,7 +249,8 @@ export default function App() {
     navigateTo('success');
   };
 
-  const filteredProducts = category === 'all' ? PRODUCTS : PRODUCTS.filter(p => p.category === category);
+  // Use the products state for filtering
+  const filteredProducts = category === 'all' ? products : products.filter(p => p.category === category);
 
   return (
     <div className="flex flex-col min-h-screen bg-theme-bg text-theme-text font-sans">
@@ -340,8 +357,8 @@ export default function App() {
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-[15px]">
-                {PRODUCTS.slice(0, 6).map(product => (
-                  <ProductCard key={product.id} product={product} onAdd={addToCart} />
+                {products.slice(0, 6).map(product => (
+                  <ProductCard key={product.id} product={product} onAdd={addToCart} onEditImage={setEditingProduct} />
                 ))}
               </div>
               
@@ -374,7 +391,7 @@ export default function App() {
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-[15px] pb-[20px]">
                 {filteredProducts.map(product => (
-                  <ProductCard key={product.id} product={product} onAdd={addToCart} />
+                  <ProductCard key={product.id} product={product} onAdd={addToCart} onEditImage={setEditingProduct} />
                 ))}
               </div>
               {filteredProducts.length === 0 && (
@@ -477,6 +494,104 @@ export default function App() {
           Contact: +213 555 00 00 00 | Suivez-nous: FB / IG
         </div>
       </footer>
+
+      {/* Image Editor Modal */}
+      <AnimatePresence>
+        {editingProduct && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
+            <motion.div 
+              initial={{ scale: 0.95, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.95, opacity: 0 }}
+              className="bg-white rounded-[16px] w-full max-w-[500px] overflow-hidden shadow-2xl"
+            >
+              <div className="p-[20px] border-b flex justify-between items-center text-black">
+                <h2 className="font-bold text-[18px]">Créez l'image avec l'IA</h2>
+                <button onClick={() => { setEditingProduct(null); setImagePrompt(''); }} className="p-1 hover:bg-gray-100 rounded-full">
+                  <X size={20} />
+                </button>
+              </div>
+              <div className="p-[20px] flex gap-4 text-black">
+                <div className="w-[120px] h-[120px] shrink-0 bg-gray-100 rounded-[8px] overflow-hidden">
+                  <img src={editingProduct.image} alt="current" className="w-full h-full object-cover" referrerPolicy="no-referrer" />
+                </div>
+                <div className="flex-grow flex flex-col gap-3">
+                  <div>
+                    <h3 className="font-semibold text-[14px]">{editingProduct.nameFr}</h3>
+                    <p className="text-[12px] text-gray-500">{editingProduct.descriptionFr}</p>
+                  </div>
+                  <textarea 
+                    className="w-full resize-none border rounded-[8px] p-[10px] text-[13px] outline-none focus:border-theme-primary"
+                    rows={3}
+                    placeholder="Ex: Une photo professionnelle d'une chaise en plastique blanc sur fond neutre..."
+                    value={imagePrompt}
+                    onChange={(e) => setImagePrompt(e.target.value)}
+                  />
+                </div>
+              </div>
+              <div className="p-[20px] border-t bg-gray-50 flex justify-end">
+                <button 
+                  disabled={isGenerating}
+                  onClick={async () => {
+                    const studio = (window as any).aistudio;
+                    if (studio) {
+                      if (!(await studio.hasSelectedApiKey())) {
+                        await studio.openSelectKey();
+                      }
+                    }
+                    
+                    const apiKey = process.env.GEMINI_API_KEY || (process as any).env.API_KEY || (import.meta as any).env.VITE_GEMINI_API_KEY;
+                    if (!apiKey) {
+                      alert("Veuillez configurer une clé API Gemini pour pouvoir générer des images.");
+                      return;
+                    }
+
+                    setIsGenerating(true);
+                    try {
+                      const ai = new GoogleGenAI({ apiKey });
+                      const finalPrompt = imagePrompt.trim() !== '' 
+                        ? imagePrompt 
+                        : `A high quality, realistic e-commerce product photo with a pure white background of: ${editingProduct.nameFr}. No text or extra objects.`;
+                      
+                      const response = await ai.models.generateContent({
+                        model: 'gemini-3.1-flash-image-preview',
+                        contents: {
+                          parts: [{ text: finalPrompt }]
+                        }
+                      });
+
+                      let newImgUrl = '';
+                      const parts = response.candidates?.[0]?.content?.parts || [];
+                      for (const part of parts) {
+                        if (part.inlineData) {
+                          newImgUrl = `data:${part.inlineData.mimeType || 'image/png'};base64,${part.inlineData.data}`;
+                          break;
+                        }
+                      }
+
+                      if (newImgUrl) {
+                        setProducts(prev => prev.map(p => p.id === editingProduct.id ? { ...p, image: newImgUrl } : p));
+                        setEditingProduct(null);
+                        setImagePrompt('');
+                      } else {
+                        alert("L'IA n'a pas pu générer l'image. Veuillez réessayer.");
+                      }
+                    } catch (e) {
+                      console.error("Image generation error:", e);
+                      alert("Erreur lors de la génération. Assurez-vous d'avoir une clé API valide.");
+                    } finally {
+                      setIsGenerating(false);
+                    }
+                  }}
+                  className="bg-theme-primary text-white font-bold text-[14px] px-[20px] py-[10px] rounded-[6px] hover:opacity-90 flex items-center gap-2 disabled:opacity-50"
+                >
+                  {isGenerating ? <><Loader2 size={16} className="animate-spin" /> Génération...</> : <><Sparkles size={16} /> Générer</>}
+                </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
 
     </div>
   );
