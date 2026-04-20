@@ -1,10 +1,10 @@
 import React, { useState } from 'react';
-import { ShoppingCart, Menu, X, Trash2, Package, Shirt, Gamepad2, CheckCircle, ChevronRight, MapPin, Truck, Phone, Home, Hammer, Sparkles, Tv, PenTool, Gift, Pencil, Loader2 } from 'lucide-react';
+import { ShoppingCart, Menu, X, Trash2, Package, Shirt, Gamepad2, CheckCircle, ChevronRight, MapPin, Truck, Phone, Home, Hammer, Sparkles, Tv, PenTool, Gift, Pencil, Loader2, Car, Settings, Baby, Briefcase, Music, TreePine, Dog, Key, Dumbbell, Book, Sofa, Store, Heart, Watch, Gem, Palette, Archive } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { GoogleGenAI } from '@google/genai';
 
 // --- Types ---
-type Category = 'plastique' | 'vetements' | 'jouets' | 'maison' | 'bricolage' | 'hygiene' | 'electronique' | 'papeterie' | 'packs';
+type Category = 'plastique' | 'vetements_homme' | 'vetements_femme' | 'vetements_enfants' | 'jouets' | 'maison' | 'bricolage' | 'hygiene' | 'electronique' | 'papeterie' | 'packs' | 'vehicules' | 'pieces_auto' | 'bebes' | 'bagages' | 'musique' | 'jardin' | 'animaux' | 'locations' | 'sport' | 'livres' | 'meubles' | 'videgrenier' | 'sante' | 'bijoux' | 'antiquites' | 'art' | 'divers' | 'immobilier';
 
 interface Product {
   id: string;
@@ -29,10 +29,10 @@ const INITIAL_PRODUCTS: Product[] = [
   { id: 'p3', category: 'plastique', price: 100, nameFr: 'Boîte de Rangement', nameAr: 'صندوق تخزين', descriptionFr: 'Idéale pour organiser vos objets.', descriptionAr: 'مثالي لتنظيم أشيائك', image: 'https://placehold.co/400x300/e2e8f0/334155?text=Bo%C3%AEte%20de%20Rangement' },
   { id: 'p4', category: 'plastique', price: 100, nameFr: 'Egouttoir à Vaisselle', nameAr: 'مصفاة أطباق', descriptionFr: 'Égouttoir pratique pour cuisine.', descriptionAr: 'مصفاة عملية للمطبخ', image: 'https://placehold.co/400x300/e2e8f0/334155?text=Egouttoir%20%C3%A0%20Vaisselle' },
   { id: 'p5', category: 'plastique', price: 50, nameFr: 'Verre en plastique', nameAr: 'كأس بلاستيك', descriptionFr: 'Verre incassable.', descriptionAr: 'كأس بلاستيكي', image: 'https://placehold.co/400x300/e2e8f0/334155?text=Verre%20en%20plastique' },
-  { id: 'v1', category: 'vetements', price: 100, nameFr: 'T-shirt Basique', nameAr: 'تي شيرت أساسي', descriptionFr: 'T-shirt 100% coton, confortable.', descriptionAr: 'تي شيرت قطن 100٪', image: 'https://placehold.co/400x300/e2e8f0/334155?text=T-shirt%20Basique' },
-  { id: 'v2', category: 'vetements', price: 100, nameFr: 'Paire de Chaussettes', nameAr: 'زوج جوارب', descriptionFr: 'Chaussettes chaudes et douces.', descriptionAr: 'جوارب دافئة ومريحة', image: 'https://placehold.co/400x300/e2e8f0/334155?text=Paire%20de%20Chaussettes' },
-  { id: 'v3', category: 'vetements', price: 100, nameFr: 'Casquette Ajustable', nameAr: 'قبعة رياضية', descriptionFr: 'Parfaite pour l\'été.', descriptionAr: 'مثالية للصيف', image: 'https://placehold.co/400x300/e2e8f0/334155?text=Casquette%20Ajustable' },
-  { id: 'v4', category: 'vetements', price: 100, nameFr: 'Bonnet d\'Hiver', nameAr: 'قبعة شتوية', descriptionFr: 'Bonnet tricoté en laine.', descriptionAr: 'قبعة منسوجة', image: 'https://placehold.co/400x300/e2e8f0/334155?text=Bonnet%20d%5C' },
+  { id: 'v1', category: 'vetements_homme', price: 100, nameFr: 'T-shirt Basique', nameAr: 'تي شيرت أساسي', descriptionFr: 'T-shirt 100% coton, confortable.', descriptionAr: 'تي شيرت قطن 100٪', image: 'https://placehold.co/400x300/e2e8f0/334155?text=T-shirt%20Basique' },
+  { id: 'v2', category: 'vetements_homme', price: 100, nameFr: 'Paire de Chaussettes', nameAr: 'زوج جوارب', descriptionFr: 'Chaussettes chaudes et douces.', descriptionAr: 'جوارب دافئة ومريحة', image: 'https://placehold.co/400x300/e2e8f0/334155?text=Paire%20de%20Chaussettes' },
+  { id: 'v3', category: 'vetements_homme', price: 100, nameFr: 'Casquette Ajustable', nameAr: 'قبعة رياضية', descriptionFr: 'Parfaite pour l\'été.', descriptionAr: 'مثالية للصيف', image: 'https://placehold.co/400x300/e2e8f0/334155?text=Casquette%20Ajustable' },
+  { id: 'v4', category: 'vetements_homme', price: 100, nameFr: 'Bonnet d\'Hiver', nameAr: 'قبعة شتوية', descriptionFr: 'Bonnet tricoté en laine.', descriptionAr: 'قبعة منسوجة', image: 'https://placehold.co/400x300/e2e8f0/334155?text=Bonnet%20d%5C' },
   { id: 'j1', category: 'jouets', price: 100, nameFr: 'Petite Voiture Course', nameAr: 'سيارة سباق صغيرة', descriptionFr: 'Voiture en plastique.', descriptionAr: 'سيارة بلاستيكية', image: 'https://placehold.co/400x300/e2e8f0/334155?text=Petite%20Voiture%20Course' },
   { id: 'j2', category: 'jouets', price: 100, nameFr: 'Balle Colorée', nameAr: 'كرة ملونة', descriptionFr: 'Balle en mousse rebondissante.', descriptionAr: 'كرة نطاطة', image: 'https://placehold.co/400x300/e2e8f0/334155?text=Balle%20Color%C3%A9e' },
   { id: 'j3', category: 'jouets', price: 100, nameFr: 'Corde à Sauter', nameAr: 'حبل قفز', descriptionFr: 'Corde avec poignées.', descriptionAr: 'حبل بمقابض', image: 'https://placehold.co/400x300/e2e8f0/334155?text=Corde%20%C3%A0%20Sauter' },
@@ -51,8 +51,8 @@ const INITIAL_PRODUCTS: Product[] = [
   { id: 'h1', category: 'hygiene', price: 100, nameFr: 'Brosse à dents', nameAr: 'فرشاة أسنان', descriptionFr: 'Poils souples.', descriptionAr: 'شعيرات ناعمة', image: 'https://placehold.co/400x300/e2e8f0/334155?text=Brosse%20%C3%A0%20dents' },
   { id: 'h2', category: 'hygiene', price: 100, nameFr: 'Dentifrice (Petit)', nameAr: 'معجون أسنان صغير', descriptionFr: 'Volume standard.', descriptionAr: 'حجم عادي', image: 'https://placehold.co/400x300/e2e8f0/334155?text=Dentifrice%20(Petit)' },
   { id: 'h3', category: 'hygiene', price: 200, nameFr: 'Dentifrice (Grand)', nameAr: 'معجون أسنان كبير', descriptionFr: 'Grand volume familial.', descriptionAr: 'حجم عائلي كبير', image: 'https://placehold.co/400x300/e2e8f0/334155?text=Dentifrice%20(Grand)' },
-  { id: 'v5', category: 'vetements', price: 200, nameFr: 'Chemise Classique', nameAr: 'قميص كلاسيكي', descriptionFr: 'Chemise élégante.', descriptionAr: 'قميص أنيق', image: 'https://placehold.co/400x300/e2e8f0/334155?text=Chemise%20Classique' },
-  { id: 'v6', category: 'vetements', price: 100, nameFr: 'Casquette', nameAr: 'كاسكيطة', descriptionFr: 'Casquette classique.', descriptionAr: 'قبعة صيفية', image: 'https://placehold.co/400x300/e2e8f0/334155?text=Casquette' },
+  { id: 'v5', category: 'vetements_homme', price: 200, nameFr: 'Chemise Classique', nameAr: 'قميص كلاسيكي', descriptionFr: 'Chemise élégante.', descriptionAr: 'قميص أنيق', image: 'https://placehold.co/400x300/e2e8f0/334155?text=Chemise%20Classique' },
+  { id: 'v6', category: 'vetements_homme', price: 100, nameFr: 'Casquette', nameAr: 'كاسكيطة', descriptionFr: 'Casquette classique.', descriptionAr: 'قبعة صيفية', image: 'https://placehold.co/400x300/e2e8f0/334155?text=Casquette' },
   { id: 'm8', category: 'maison', price: 100, nameFr: 'Éponge métallique (3 pcs)', nameAr: 'حبل غسل الأواني', descriptionFr: 'Lot de 3 pour la vaisselle.', descriptionAr: '3 بـ 100 دج', image: 'https://placehold.co/400x300/e2e8f0/334155?text=%C3%89ponge%20m%C3%A9tallique%20(3%20pcs)' },
   { id: 'p6', category: 'plastique', price: 50, nameFr: 'Pelle en plastique (Petit)', nameAr: 'مجرفة بلاستيك (صغير)', descriptionFr: 'Petite pelle.', descriptionAr: 'مجرفة صغيرة', image: 'https://placehold.co/400x300/e2e8f0/334155?text=Pelle%20en%20plastique%20(Petit)' },
   { id: 'p7', category: 'plastique', price: 75, nameFr: 'Pelle en plastique (Moyen)', nameAr: 'مجرفة بلاستيك (متوسط)', descriptionFr: 'Taille moyenne.', descriptionAr: 'مجرفة متوسطة', image: 'https://placehold.co/400x300/e2e8f0/334155?text=Pelle%20en%20plastique%20(Moyen)' },
@@ -85,13 +85,33 @@ const INITIAL_PRODUCTS: Product[] = [
 ];
 
 const CATEGORIES_LIST = [
-  { id: 'plastique', icon: Package, fr: 'Plastique', ar: 'بلاستيك' },
-  { id: 'vetements', icon: Shirt, fr: 'Vêtements', ar: 'ملابس' },
-  { id: 'jouets', icon: Gamepad2, fr: 'Jouets', ar: 'ألعاب' },
-  { id: 'maison', icon: Home, fr: 'Maison', ar: 'منزل' },
+  { id: 'vehicules', icon: Car, fr: 'Véhicules', ar: 'مركبات' },
+  { id: 'locations', icon: Key, fr: 'Locations', ar: 'إيجارات' },
+  { id: 'vetements_femme', icon: Shirt, fr: 'Prêt à porter femme', ar: 'ملابس نسائية' },
+  { id: 'vetements_homme', icon: Shirt, fr: 'Prêt à porter homme', ar: 'ملابس رجالية' },
+  { id: 'meubles', icon: Sofa, fr: 'Meubles', ar: 'أثاث' },
+  { id: 'electronique', icon: Tv, fr: 'Appareils électroniques', ar: 'أجهزة إلكترونية' },
+  { id: 'antiquites', icon: Gem, fr: 'Antiquités et objets de collection', ar: 'تحف ومقتنيات' },
+  { id: 'art', icon: Palette, fr: 'Art et artisanat', ar: 'فنون وحرف' },
+  { id: 'pieces_auto', icon: Settings, fr: 'Pièces automobiles', ar: 'قطع غيار السيارات' },
+  { id: 'bebes', icon: Baby, fr: 'Bébés', ar: 'رضع' },
+  { id: 'livres', icon: Book, fr: 'Livres, films et musique', ar: 'كتب، أفلام وموسيقى' },
+  { id: 'videgrenier', icon: Store, fr: 'Vide-grenier', ar: 'مستعمل' },
+  { id: 'sante', icon: Heart, fr: 'Santé et beauté', ar: 'صحة وجمال' },
+  { id: 'maison', icon: Home, fr: 'Maison et cuisine', ar: 'المنزل والمطبخ' },
   { id: 'bricolage', icon: Hammer, fr: 'Bricolage', ar: 'أدوات' },
+  { id: 'immobilier', icon: Key, fr: 'Vente de logements', ar: 'بيع مساكن' },
+  { id: 'bijoux', icon: Watch, fr: 'Bijoux et montres', ar: 'مجوهرات وساعات' },
+  { id: 'vetements_enfants', icon: Shirt, fr: 'Vêtements pour enfants et bébés', ar: 'ملابس أطفال ورضع' },
+  { id: 'bagages', icon: Briefcase, fr: 'Bagages et sacs', ar: 'حقائب وأمتعة' },
+  { id: 'divers', icon: Archive, fr: 'Divers', ar: 'متنوعات' },
+  { id: 'musique', icon: Music, fr: 'Instruments de musique', ar: 'آلات موسيقية' },
+  { id: 'jardin', icon: TreePine, fr: 'Patio et jardin', ar: 'فناء وحديقة' },
+  { id: 'animaux', icon: Dog, fr: 'Produits pour animaux', ar: 'منتجات الحيوانات' },
+  { id: 'sport', icon: Dumbbell, fr: 'Articles de sport', ar: 'أدوات رياضية' },
+  { id: 'jouets', icon: Gamepad2, fr: 'Jeux et jouets', ar: 'ألعاب' },
+  { id: 'plastique', icon: Package, fr: 'Plastique', ar: 'بلاستيك' },
   { id: 'hygiene', icon: Sparkles, fr: 'Hygiène', ar: 'نظافة' },
-  { id: 'electronique', icon: Tv, fr: 'Électronique', ar: 'إلكترونيات' },
   { id: 'papeterie', icon: PenTool, fr: 'Papeterie', ar: 'قرطاسية' },
   { id: 'packs', icon: Gift, fr: 'Packs Promo', ar: 'عروض' }
 ] as const;
@@ -257,11 +277,14 @@ export default function App() {
       
       {/* HEADER */}
       <header className="h-[70px] bg-theme-secondary border-b border-theme-border flex items-center justify-between px-[20px] md:px-[30px] shrink-0 sticky top-0 z-40">
-        <div className="flex items-center gap-[10px] font-extrabold text-[20px] md:text-[22px] text-theme-primary cursor-pointer" onClick={() => navigateTo('home')}>
-          <div className="w-[32px] h-[32px] bg-theme-primary rounded-[6px] flex items-center justify-center text-white text-[14px]">
-            K
+        <div className="flex items-center gap-[10px] font-extrabold text-[18px] md:text-[20px] text-theme-primary cursor-pointer" onClick={() => navigateTo('home')}>
+          <div className="w-[40px] h-[40px] rounded-[6px] flex items-center justify-center overflow-hidden shrink-0 bg-theme-bg">
+            <img src="/logo.png" alt="Logo" className="w-full h-full object-contain" onError={(e) => { e.currentTarget.style.display = 'none'; e.currentTarget.nextElementSibling?.classList.remove('hidden'); }} />
+            <div className="hidden w-full h-full bg-theme-primary flex items-center justify-center text-white text-[14px]">
+              C
+            </div>
           </div>
-          <span className="flex items-center gap-[6px]">Koulchi <span className="font-light opacity-70 text-[14px] mt-0.5">| 100 DA</span></span>
+          <span className="flex items-center gap-[6px]">Cherchell Shopping <span className="font-light opacity-70 text-[14px] mt-0.5">| 100 DA</span></span>
         </div>
 
         <nav className="hidden md:block">
@@ -484,7 +507,7 @@ export default function App() {
       </main>
 
       <footer id="contact" className="h-auto md:h-[60px] bg-theme-secondary border-t border-theme-border flex flex-col md:flex-row items-center justify-between px-[20px] md:px-[30px] text-[12px] text-theme-muted shrink-0 py-4 md:py-0 mt-auto">
-        <div className="mb-2 md:mb-0 text-center md:text-left">© {new Date().getFullYear()} Koulchi 100 DA - Tous droits réservés | كل الحقوق محفوظة</div>
+        <div className="mb-2 md:mb-0 text-center md:text-left">© {new Date().getFullYear()} Cherchell Shopping 100 DA - Tous droits réservés | كل الحقوق محفوظة</div>
         <div className="flex gap-[10px] text-theme-primary font-semibold mb-2 md:mb-0">
           <span>FR</span>
           <span>|</span>
