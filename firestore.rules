@@ -15,7 +15,8 @@ service cloud.firestore {
     // but the system prompt says "Bootstrapped Admin: Include User email from runtime as an admin if the app has an admin feature."
     // User Email: brandlybrand9@gmail.com
     function isAdmin() {
-      return isSignedIn() && request.auth.token.email == 'brandlybrand9@gmail.com';
+      // Pour autoriser n'importe quel compte créé à gérer les produits :
+      return isSignedIn();
     }
 
     function isValidId(id) {
