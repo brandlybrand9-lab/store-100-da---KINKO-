@@ -4,6 +4,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import { db, auth } from './lib/firebase';
 import { collection, getDocs, doc, setDoc, deleteDoc, updateDoc } from 'firebase/firestore';
 import { signInWithPopup, GoogleAuthProvider, signInWithEmailAndPassword, signOut, onAuthStateChanged, User } from 'firebase/auth';
+import { removeBackground } from '@imgly/background-removal';
 
 // --- Types ---
 type Category = 'plastique' | 'vetements_homme' | 'vetements_femme' | 'vetements_enfants' | 'jouets' | 'maison' | 'bricolage' | 'hygiene' | 'electronique' | 'papeterie' | 'packs' | 'vehicules' | 'pieces_auto' | 'bebes' | 'bagages' | 'musique' | 'jardin' | 'animaux' | 'locations' | 'sport' | 'livres' | 'meubles' | 'videgrenier' | 'sante' | 'bijoux' | 'antiquites' | 'art' | 'divers' | 'immobilier';
@@ -122,8 +123,8 @@ const CATEGORIES_LIST = [
 
 const ProductCard: React.FC<{ product: Product, onAdd: (p: Product) => void }> = ({ product, onAdd }) => (
   <div className="bg-theme-secondary rounded-[12px] border border-theme-border shadow-[0_4px_12px_rgba(0,0,0,0.05)] p-[12px] flex flex-col gap-[8px] transition-transform hover:-translate-y-1 relative group">
-    <div className="h-[100px] bg-[#f0f2f0] rounded-[8px] flex items-center justify-center overflow-hidden shrink-0 relative">
-      <img src={product.image} alt={product.nameFr} className="w-full h-full object-cover" referrerPolicy="no-referrer" />
+    <div className="aspect-square bg-[#f0f2f0] rounded-[8px] flex items-center justify-center overflow-hidden shrink-0 relative">
+      <img src={product.image} alt={product.nameFr} className="w-full h-full object-contain" referrerPolicy="no-referrer" />
     </div>
     <div className="flex flex-col flex-grow">
       <div className="text-[14px] font-semibold text-theme-text">{product.nameFr}</div>
@@ -225,39 +226,83 @@ export default function App() {
   const [view, setView] = useState<'home' | 'products' | 'checkout' | 'success' | 'admin'>('home');
   const [category, setCategory] = useState<Category | 'all'>('all');
 
-  const resizeImage = (file: File): Promise<string> => {
-    return new Promise((resolve, reject) => {
-      const reader = new FileReader();
-      reader.readAsDataURL(file);
-      reader.onload = (e) => {
-        const img = new Image();
-        img.src = e.target?.result as string;
-        img.onload = () => {
-          const canvas = document.createElement('canvas');
-          let width = img.width;
-          let height = img.height;
-          const max_size = 800;
+  const processImage = async (file: File): Promise<string> => {
+    return new Promise(async (resolve, reject) => {
+      try {
+        console.log("Removing background...");
+        // Use bg removal to get transparent blob
+        const blob = await removeBackground(file);
+        
+        const reader = new FileReader();
+        reader.readAsDataURL(blob);
+        reader.onload = (e) => {
+          const img = new Image();
+          img.src = e.target?.result as string;
+          img.onload = () => {
+            const canvas = document.createElement('canvas');
+            const max_size = 800;
+            const size = Math.max(img.width, img.height);
+            const targetSize = size > max_size ? max_size : size;
 
-          if (width > height) {
-            if (width > max_size) {
-              height *= max_size / width;
-              width = max_size;
+            canvas.width = targetSize;
+            canvas.height = targetSize;
+            const ctx = canvas.getContext('2d');
+            
+            // Draw white background and center image
+            if (ctx) {
+              ctx.fillStyle = '#FFFFFF';
+              ctx.fillRect(0, 0, targetSize, targetSize);
+              
+              const scale = targetSize / size;
+              const w = img.width * scale;
+              const h = img.height * scale;
+              const x = (targetSize - w) / 2;
+              const y = (targetSize - h) / 2;
+              
+              ctx.drawImage(img, x, y, w, h);
             }
-          } else {
-            if (height > max_size) {
-              width *= max_size / height;
-              height = max_size;
-            }
-          }
-
-          canvas.width = width;
-          canvas.height = height;
-          const ctx = canvas.getContext('2d');
-          ctx?.drawImage(img, 0, 0, width, height);
-          resolve(canvas.toDataURL('image/jpeg', 0.8));
+            
+            resolve(canvas.toDataURL('image/jpeg', 0.8));
+          };
+          img.onerror = error => reject(error);
         };
-      };
-      reader.onerror = error => reject(error);
+        reader.onerror = error => reject(error);
+      } catch (error) {
+        console.error("Background removal failed, falling back to resize only", error);
+        // Fallback if background removal fails
+        const reader = new FileReader();
+        reader.readAsDataURL(file);
+        reader.onload = (e) => {
+          const img = new Image();
+          img.src = e.target?.result as string;
+          img.onload = () => {
+            const canvas = document.createElement('canvas');
+            const max_size = 800;
+            const size = Math.max(img.width, img.height);
+            const targetSize = size > max_size ? max_size : size;
+
+            canvas.width = targetSize;
+            canvas.height = targetSize;
+            const ctx = canvas.getContext('2d');
+            
+            // Draw white background and center image
+            if (ctx) {
+              ctx.fillStyle = '#FFFFFF';
+              ctx.fillRect(0, 0, targetSize, targetSize);
+              
+              const scale = targetSize / size;
+              const w = img.width * scale;
+              const h = img.height * scale;
+              const x = (targetSize - w) / 2;
+              const y = (targetSize - h) / 2;
+              
+              ctx.drawImage(img, x, y, w, h);
+            }
+            resolve(canvas.toDataURL('image/jpeg', 0.8));
+          };
+        };
+        reader.onerror = err => reject(err);
+      }
     });
   };
 
@@ -287,7 +332,8 @@ export default function App() {
         alert("L'image est trop grande (max 5MB)");
         return;
       }
-      const base64Image = await resizeImage(file);
+      setIsProcessingImage(true);
+      const base64Image = await processImage(file);
       await updateDoc(doc(db, 'products', product.id), {
         image: base64Image
       });
@@ -296,6 +342,8 @@ export default function App() {
     } catch (e) {
       console.error("Erreur de l'upload:", e);
       alert("Erreur lors du téléchargement de l'image.");
+    } finally {
+      setIsProcessingImage(false);
     }
   };
 
@@ -343,6 +391,7 @@ export default function App() {
     id: '', nameFr: '', nameAr: '', category: 'divers', price: 0, descriptionFr: '', descriptionAr: '', image: ''
   });
   const [isSavingProduct, setIsSavingProduct] = useState(false);
+  const [isProcessingImage, setIsProcessingImage] = useState(false);
 
   React.useEffect(() => {
     const fetchProducts = async () => {
@@ -748,7 +797,7 @@ export default function App() {
                            <tr key={p.id} className="border-b last:border-0 hover:bg-gray-50 transition-colors">
                              <td className="p-3">
                                <div className="w-16 h-16 bg-gray-100 rounded-md overflow-hidden relative group border">
-                                 <img src={p.image} className="w-full h-full object-cover" referrerPolicy="no-referrer" />
+                                 <img src={p.image} className="w-full h-full object-contain" referrerPolicy="no-referrer" />
                                  <label className="absolute bottom-0 left-0 right-0 bg-black/70 flex items-center justify-center cursor-pointer py-1 text-white hover:bg-theme-primary transition-colors cursor-pointer" title="Modifier l'image">
                                    <input 
                                      type="file" 
@@ -838,17 +887,22 @@ export default function App() {
                                <textarea required rows={2} dir="rtl" className="w-full border rounded-[8px] p-2 outline-none bg-gray-50 focus:bg-white transition-colors resize-none" value={newProduct.descriptionAr || ''} onChange={e => setNewProduct({...newProduct, descriptionAr: e.target.value})} />
                              </div>
                              <div>
-                               <label className="block text-[12px] font-bold text-gray-500 mb-1">Image (Sera générique par défaut, modifiable plus tard)</label>
-                               <input type="file" accept="image/*" className="w-full text-[13px]" onChange={async e => {
+                               <label className="block text-[12px] font-bold text-gray-500 mb-1">Image (Fond effacé automatiquement)</label>
+                               <input type="file" accept="image/*" disabled={isProcessingImage} className="w-full text-[13px] disabled:opacity-50" onChange={async e => {
                                  if (e.target.files && e.target.files[0]) {
                                    try {
-                                     const img = await resizeImage(e.target.files[0]);
+                                     setIsProcessingImage(true);
+                                     const img = await processImage(e.target.files[0]);
                                      setNewProduct({...newProduct, image: img});
                                    } catch(err) {
                                      alert("Erreur lors de la préparation de l'image");
+                                   } finally {
+                                     setIsProcessingImage(false);
                                    }
                                  }
                                }} />
+                               {isProcessingImage && <p className="text-[12px] text-theme-primary flex items-center gap-1 mt-1"><Loader2 size={12} className="animate-spin" /> Traitement de l'image (suppression du fond)...</p>}
+                               {newProduct.image && !isProcessingImage && <div className="mt-2 text-[12px] text-green-600 flex items-center gap-1"><CheckCircle size={12} /> Image prête</div>}
                              </div>
                              <div className="mt-4 flex justify-end">
                                <button disabled={isSavingProduct} type="submit" className="bg-theme-primary text-white font-bold py-2 px-6 rounded-[8px] hover:opacity-90 disabled:opacity-50 flex items-center gap-2">
