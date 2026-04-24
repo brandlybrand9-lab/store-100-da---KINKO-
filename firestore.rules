@@ -1,0 +1,56 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    // Function to check if the user is an admin.
+    // Normally we'd use a trusted database collection to store admins.
+    // For this applet, let's assume specific email handles admin, or any signed-in user for simplicity since it's an applet, 
+    // but the system prompt says "Bootstrapped Admin: Include User email from runtime as an admin if the app has an admin feature."
+    // User Email: brandlybrand9@gmail.com
+    function isAdmin() {
+      return isSignedIn() && request.auth.token.email == 'brandlybrand9@gmail.com';
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function isValidProduct(data) {
+      return data.keys().hasAll(['id', 'nameFr', 'nameAr', 'category', 'image', 'price']) &&
+             data.id is string && data.id.size() <= 128 &&
+             data.nameFr is string && data.nameFr.size() <= 200 &&
+             data.nameAr is string && data.nameAr.size() <= 200 &&
+             data.category is string && data.category.size() <= 100 &&
+             data.image is string && data.image.size() <= 1048576 && // Base64 can be large, up to 1MB. Firestore limit
+             data.price is number &&
+             data.descriptionFr is string && data.descriptionFr.size() <= 1000 &&
+             data.descriptionAr is string && data.descriptionAr.size() <= 1000;
+    }
+
+    match /products/{productId} {
+      allow read: if true;
+      allow create: if isAdmin() &&
+                    isValidId(productId) &&
+                    isValidProduct(incoming()) &&
+                    incoming().id == productId &&
+                    incoming().createdAt is number;
+      
+      allow update: if isAdmin() &&
+                    isValidId(productId) &&
+                    isValidProduct(incoming());
+                    
+      allow delete: if isAdmin() && isValidId(productId);
+    }
+  }
+}

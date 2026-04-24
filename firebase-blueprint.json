@@ -1,0 +1,27 @@
+{
+  "entities": {
+    "product": {
+      "title": "Product",
+      "description": "A store product",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "nameFr": { "type": "string" },
+        "nameAr": { "type": "string" },
+        "category": { "type": "string" },
+        "descriptionFr": { "type": "string" },
+        "descriptionAr": { "type": "string" },
+        "image": { "type": "string" },
+        "price": { "type": "number" },
+        "createdAt": { "type": "number" }
+      },
+      "required": ["id", "nameFr", "nameAr", "category", "image", "price"]
+    }
+  },
+  "firestore": {
+    "/products/{productId}": {
+      "schema": "product",
+      "description": "Products available in the store"
+    }
+  }
+}

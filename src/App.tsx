@@ -1,7 +1,9 @@
 import React, { useState } from 'react';
-import { ShoppingCart, Menu, X, Trash2, Package, Shirt, Gamepad2, CheckCircle, ChevronRight, MapPin, Truck, Phone, Home, Hammer, Sparkles, Tv, PenTool, Gift, Pencil, Loader2, Car, Settings, Baby, Briefcase, Music, TreePine, Dog, Key, Dumbbell, Book, Sofa, Store, Heart, Watch, Gem, Palette, Archive } from 'lucide-react';
+import { ShoppingCart, Menu, X, Trash2, Package, Shirt, Gamepad2, CheckCircle, ChevronRight, MapPin, Truck, Phone, Home, Hammer, Sparkles, Tv, PenTool, Gift, Pencil, Loader2, Car, Settings, Baby, Briefcase, Music, TreePine, Dog, Key, Dumbbell, Book, Sofa, Store, Heart, Watch, Gem, Palette, Archive, Activity, LockIcon, LogOut, Upload, Plus } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
-import { GoogleGenAI } from '@google/genai';
+import { db, auth } from './lib/firebase';
+import { collection, getDocs, doc, setDoc, deleteDoc, updateDoc } from 'firebase/firestore';
+import { signInWithPopup, GoogleAuthProvider, signOut, onAuthStateChanged, User } from 'firebase/auth';
 
 // --- Types ---
 type Category = 'plastique' | 'vetements_homme' | 'vetements_femme' | 'vetements_enfants' | 'jouets' | 'maison' | 'bricolage' | 'hygiene' | 'electronique' | 'papeterie' | 'packs' | 'vehicules' | 'pieces_auto' | 'bebes' | 'bagages' | 'musique' | 'jardin' | 'animaux' | 'locations' | 'sport' | 'livres' | 'meubles' | 'videgrenier' | 'sante' | 'bijoux' | 'antiquites' | 'art' | 'divers' | 'immobilier';
@@ -74,7 +76,7 @@ const INITIAL_PRODUCTS: Product[] = [
   { id: 'j6', category: 'jouets', price: 100, nameFr: 'Jouet Enfant', nameAr: 'لعبة أطفال', descriptionFr: 'Jouet divertissant pour enfant.', descriptionAr: 'لعبة أطفال متنوعة', image: 'https://placehold.co/400x300/e2e8f0/334155?text=Jouet%20Enfant' },
   { id: 'm17', category: 'maison', price: 100, nameFr: 'Pinces à linge (Mssak)', nameAr: 'مساك حوايج', descriptionFr: 'Lot de pinces pour vêtements.', descriptionAr: 'مجموعة مساك', image: 'https://placehold.co/400x300/e2e8f0/334155?text=Pinces%20%C3%A0%20linge%20(Mssak)' },
   { id: 'm18', category: 'maison', price: 100, nameFr: 'Brosse de nettoyage (Chita)', nameAr: 'شيتة تنظيف', descriptionFr: 'Brosse rugueuse de nettoyage.', descriptionAr: 'شيتة', image: 'https://placehold.co/400x300/e2e8f0/334155?text=Brosse%20de%20nettoyage%20(Chita)' },
-  { id: 'm19', category: 'maison', price: 100, nameFr: 'Balai', nameAr: 'بالي (مكنسة)', descriptionFr: 'Balai classique pour sol.', descriptionAr: 'مكنسة تنظيف', image: 'https://placehold.co/400x300/e2e8f0/334155?text=Balai' },
+  { id: 'm19', category: 'maison', price: 100, nameFr: 'Balai', nameAr: 'بالي (مكنسة)', descriptionFr: 'Balai classique pour sol.', descriptionAr: 'مكنسة تنظيف', image: '/Balai.png' },
   { id: 'm20', category: 'maison', price: 100, nameFr: 'Manche à Balai / Frottoir', nameAr: 'عصا بالي / فواطوار', descriptionFr: 'Manche robuste pour balai.', descriptionAr: 'عصا مكنسة', image: 'https://placehold.co/400x300/e2e8f0/334155?text=Manche%20%C3%A0%20Balai%20%2F%20Frottoir' },
   { id: 'm21', category: 'maison', price: 100, nameFr: 'Serviette Viscose (30x40)', nameAr: 'منديل فيسكوز 30/40', descriptionFr: 'Serviette multi-usage absorbante.', descriptionAr: 'منديل تنظيف فيسكوز', image: 'https://placehold.co/400x300/e2e8f0/334155?text=Serviette%20Viscose%20(30x40)' },
   { id: 'm22', category: 'maison', price: 100, nameFr: 'Torchon (Grand Modèle)', nameAr: 'طرشون كبير', descriptionFr: 'Grand torchon de cuisine.', descriptionAr: 'طرشون مطبخ كبير', image: 'https://placehold.co/400x300/e2e8f0/334155?text=Torchon%20(Grand%20Mod%C3%A8le)' },
@@ -118,17 +120,10 @@ const CATEGORIES_LIST = [
 
 // --- Sub-components ---
 
-const ProductCard = ({ product, onAdd, onEditImage }: { product: Product, onAdd: (p: Product) => void, onEditImage: (p: Product) => void }) => (
+const ProductCard: React.FC<{ product: Product, onAdd: (p: Product) => void }> = ({ product, onAdd }) => (
   <div className="bg-theme-secondary rounded-[12px] border border-theme-border shadow-[0_4px_12px_rgba(0,0,0,0.05)] p-[12px] flex flex-col gap-[8px] transition-transform hover:-translate-y-1 relative group">
     <div className="h-[100px] bg-[#f0f2f0] rounded-[8px] flex items-center justify-center overflow-hidden shrink-0 relative">
       <img src={product.image} alt={product.nameFr} className="w-full h-full object-cover" referrerPolicy="no-referrer" />
-      <button 
-        onClick={(e) => { e.stopPropagation(); onEditImage(product); }}
-        className="absolute top-2 right-2 w-8 h-8 bg-white/80 backdrop-blur rounded-full flex items-center justify-center text-theme-text shadow-sm opacity-0 group-hover:opacity-100 transition-opacity hover:bg-white"
-        title="Éditer l'image avec l'IA"
-      >
-        <Pencil size={14} />
-      </button>
     </div>
     <div className="flex flex-col flex-grow">
       <div className="text-[14px] font-semibold text-theme-text">{product.nameFr}</div>
@@ -227,19 +222,154 @@ const CartDrawer = ({
 
 // --- App Main Component ---
 export default function App() {
-  const [view, setView] = useState<'home' | 'products' | 'checkout' | 'success'>('home');
+  const [view, setView] = useState<'home' | 'products' | 'checkout' | 'success' | 'admin'>('home');
   const [category, setCategory] = useState<Category | 'all'>('all');
+
+  const resizeImage = (file: File): Promise<string> => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.readAsDataURL(file);
+      reader.onload = (e) => {
+        const img = new Image();
+        img.src = e.target?.result as string;
+        img.onload = () => {
+          const canvas = document.createElement('canvas');
+          let width = img.width;
+          let height = img.height;
+          const max_size = 800;
+
+          if (width > height) {
+            if (width > max_size) {
+              height *= max_size / width;
+              width = max_size;
+            }
+          } else {
+            if (height > max_size) {
+              width *= max_size / height;
+              height = max_size;
+            }
+          }
+
+          canvas.width = width;
+          canvas.height = height;
+          const ctx = canvas.getContext('2d');
+          ctx?.drawImage(img, 0, 0, width, height);
+          resolve(canvas.toDataURL('image/jpeg', 0.8));
+        };
+      };
+      reader.onerror = error => reject(error);
+    });
+  };
+
+  const syncInitialProducts = async () => {
+    try {
+      setLoading(true);
+      const batch = INITIAL_PRODUCTS.map(async (p) => {
+        await setDoc(doc(db, 'products', p.id), {
+          ...p,
+          createdAt: Date.now()
+        });
+      });
+      await Promise.all(batch);
+      setProducts(INITIAL_PRODUCTS);
+      alert("Base de données initialisée !");
+    } catch (e) {
+      console.error(e);
+      alert("Erreur lors de l'initialisation.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleImageUpload = async (file: File, product: Product) => {
+    try {
+      if (file.size > 5 * 1024 * 1024) {
+        alert("L'image est trop grande (max 5MB)");
+        return;
+      }
+      const base64Image = await resizeImage(file);
+      await updateDoc(doc(db, 'products', product.id), {
+        image: base64Image
+      });
+      setProducts(prev => prev.map(p => p.id === product.id ? { ...p, image: base64Image } : p));
+      alert("Image mise à jour !");
+    } catch (e) {
+      console.error("Erreur de l'upload:", e);
+      alert("Erreur lors du téléchargement de l'image.");
+    }
+  };
+
+  const handleNewProductSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    try {
+      setIsSavingProduct(true);
+      const productId = newProduct.id || `p_${Date.now()}`;
+      
+      const productToSave = {
+        ...newProduct,
+        id: productId,
+        image: newProduct.image || `https://placehold.co/400x300/e2e8f0/334155?text=${encodeURIComponent(newProduct.nameFr || 'Produit')}`,
+        createdAt: Date.now()
+      };
+
+      await setDoc(doc(db, 'products', productId), productToSave);
+      
+      setProducts(prev => [...prev, productToSave as Product]);
+      setIsNewProductModalOpen(false);
+      setNewProduct({ id: '', nameFr: '', nameAr: '', category: 'divers', price: 0, descriptionFr: '', descriptionAr: '', image: '' });
+      alert("Produit ajouté avec succès !");
+    } catch (error) {
+      console.error("Erreur ajout produit:", error);
+      alert("Erreur lors de l'ajout du produit.");
+    } finally {
+      setIsSavingProduct(false);
+    }
+  };
   const [cart, setCart] = useState<CartItem[]>([]);
   const [isCartOpen, setIsCartOpen] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
   // Data state
-  const [products, setProducts] = useState<Product[]>(INITIAL_PRODUCTS);
+  const [products, setProducts] = useState<Product[]>([]);
+  const [loading, setLoading] = useState(true);
+  
+  // Auth state
+  const [user, setUser] = useState<User | null>(null);
 
-  // Image editing state
-  const [editingProduct, setEditingProduct] = useState<Product | null>(null);
-  const [imagePrompt, setImagePrompt] = useState<string>('');
-  const [isGenerating, setIsGenerating] = useState(false);
+  const [isNewProductModalOpen, setIsNewProductModalOpen] = useState(false);
+  const [newProduct, setNewProduct] = useState<Partial<Product>>({
+    id: '', nameFr: '', nameAr: '', category: 'divers', price: 0, descriptionFr: '', descriptionAr: '', image: ''
+  });
+  const [isSavingProduct, setIsSavingProduct] = useState(false);
+
+  React.useEffect(() => {
+    const fetchProducts = async () => {
+      try {
+        const querySnapshot = await getDocs(collection(db, 'products'));
+        const productsList: Product[] = [];
+        querySnapshot.forEach((doc) => {
+          productsList.push(doc.data() as Product);
+        });
+        
+        // Use INITIAL_PRODUCTS if empty initially, otherwise from DB
+        setProducts(productsList.length > 0 ? productsList : INITIAL_PRODUCTS);
+      } catch (error) {
+        console.error("Error fetching products", error);
+        setProducts(INITIAL_PRODUCTS);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchProducts();
+    
+    // Auth listener
+    const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
+      setUser(currentUser);
+    });
+
+    return () => unsubscribe();
+  }, []);
 
   const addToCart = (product: Product) => {
     setCart(prev => {
@@ -279,7 +409,7 @@ export default function App() {
       <header className="h-[70px] bg-theme-secondary border-b border-theme-border flex items-center justify-between px-[20px] md:px-[30px] shrink-0 sticky top-0 z-40">
         <div className="flex items-center gap-[10px] font-extrabold text-[18px] md:text-[20px] text-theme-primary cursor-pointer" onClick={() => navigateTo('home')}>
           <div className="w-[40px] h-[40px] rounded-[6px] flex items-center justify-center overflow-hidden shrink-0 bg-theme-bg">
-            <img src="/logo.png" alt="Logo" className="w-full h-full object-contain" onError={(e) => { e.currentTarget.style.display = 'none'; e.currentTarget.nextElementSibling?.classList.remove('hidden'); }} />
+            <img src="/logo.png.png" alt="Logo" className="w-full h-full object-contain" onError={(e) => { e.currentTarget.style.display = 'none'; e.currentTarget.nextElementSibling?.classList.remove('hidden'); }} />
             <div className="hidden w-full h-full bg-theme-primary flex items-center justify-center text-white text-[14px]">
               C
             </div>
@@ -374,14 +504,14 @@ export default function App() {
           {view === 'home' && (
             <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex flex-col gap-[20px]">
               <div className="h-auto md:h-[120px] bg-gradient-to-br from-theme-primary to-[#008746] rounded-[12px] p-[25px] text-white flex flex-col justify-center relative overflow-hidden shadow-[0_4px_12px_rgba(0,0,0,0.05)] shrink-0">
-                <h2 className="text-[20px] md:text-[24px] font-bold mb-[5px] relative z-10">Promotion Spéciale</h2>
-                <p className="text-[14px] opacity-90 relative z-10">Toutes les catégories sont disponibles maintenant. Livraison 48 Wilayas.</p>
+                <h2 className="text-[20px] md:text-[24px] font-bold mb-[5px] relative z-10">Cherchell Shopping</h2>
+                <p className="text-[14px] opacity-90 relative z-10">Vente en ligne, livraison gratuite Cherchell et ses environs.</p>
                 <div className="absolute right-[20px] -bottom-[20px] text-[80px] opacity-10 font-bold pointer-events-none select-none">KOULCHI</div>
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-[15px]">
                 {products.slice(0, 6).map(product => (
-                  <ProductCard key={product.id} product={product} onAdd={addToCart} onEditImage={setEditingProduct} />
+                  <ProductCard key={product.id} product={product} onAdd={addToCart} />
                 ))}
               </div>
               
@@ -414,7 +544,7 @@ export default function App() {
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-[15px] pb-[20px]">
                 {filteredProducts.map(product => (
-                  <ProductCard key={product.id} product={product} onAdd={addToCart} onEditImage={setEditingProduct} />
+                  <ProductCard key={product.id} product={product} onAdd={addToCart} />
                 ))}
               </div>
               {filteredProducts.length === 0 && (
@@ -503,6 +633,204 @@ export default function App() {
               </button>
             </motion.div>
           )}
+
+          {/* ADMIN COMPONENT */}
+          {view === 'admin' && (
+            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="w-full bg-theme-secondary border border-theme-border rounded-[12px] shadow-[0_4px_12px_rgba(0,0,0,0.05)] p-4 md:p-[20px] flex flex-col gap-4">
+               {!user ? (
+                 <div className="flex flex-col items-center justify-center py-20 text-center">
+                   <LockIcon size={48} className="mb-4 text-theme-muted opacity-50" />
+                   <h2 className="text-xl font-bold mb-2">Accès Administrateur</h2>
+                   <p className="text-[14px] text-theme-muted mb-6">Connectez-vous pour gérer les produits, ajouter des photos et modifier les articles.</p>
+                   <button 
+                     onClick={async () => {
+                       try {
+                         const provider = new GoogleAuthProvider();
+                         await signInWithPopup(auth, provider);
+                       } catch (e) {
+                         console.error("Login erreur:", e);
+                         alert("Erreur de connexion");
+                       }
+                     }}
+                     className="bg-theme-primary text-white font-bold px-6 py-2 rounded-lg flex items-center gap-2 hover:opacity-90"
+                   >
+                     Se connecter avec Google
+                   </button>
+                 </div>
+               ) : user.email !== 'brandlybrand9@gmail.com' ? (
+                 <div className="flex flex-col items-center justify-center py-20 text-center">
+                   <LockIcon size={48} className="mb-4 text-red-400 opacity-50" />
+                   <h2 className="text-xl font-bold mb-2 text-red-600">Accès Refusé</h2>
+                   <p className="text-[14px] text-theme-muted mb-6">Votre compte ({user.email}) n'a pas les droits d'administration.</p>
+                   <button 
+                     onClick={() => signOut(auth)} 
+                     className="bg-gray-200 text-gray-800 font-bold px-6 py-2 rounded-lg flex items-center gap-2 hover:bg-gray-300"
+                   >
+                     Se déconnecter
+                   </button>
+                 </div>
+               ) : (
+                 <div className="flex flex-col gap-6 w-full">
+                   <div className="flex justify-between items-center bg-gray-50 p-4 border rounded-lg">
+                      <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 bg-theme-primary text-white rounded-full flex items-center justify-center font-bold">{user.email?.charAt(0).toUpperCase()}</div>
+                        <div>
+                          <p className="font-bold text-[14px]">{user.displayName || 'Admin'}</p>
+                          <p className="text-[12px] text-gray-500">{user.email}</p>
+                        </div>
+                      </div>
+                      <button 
+                        onClick={() => signOut(auth)} 
+                        className="text-red-500 hover:bg-red-50 p-2 rounded-lg flex items-center gap-2 text-[13px]"
+                      >
+                        <LogOut size={16} /> <span className="hidden sm:inline">Déconnexion</span>
+                      </button>
+                   </div>
+                   
+                   <div className="flex flex-wrap gap-4 justify-between items-center">
+                     <h3 className="font-bold text-[18px]">Gestion des Produits</h3>
+                     <div className="flex gap-2">
+                       <button onClick={syncInitialProducts} className="bg-[#e8f5e9] text-theme-primary font-semibold px-4 py-2 rounded-[8px] flex items-center gap-2 text-[13px] border border-[#c8e6c9] hover:bg-[#c8e6c9] transition-colors">
+                         <Activity size={16} /> Seed Base de Données
+                       </button>
+                       <button onClick={() => setIsNewProductModalOpen(true)} className="bg-theme-primary text-white font-semibold px-4 py-2 rounded-[8px] flex items-center gap-2 text-[13px] hover:opacity-90 transition-opacity">
+                         <Plus size={16} /> Nouveau Produit
+                       </button>
+                     </div>
+                   </div>
+
+                   <div className="border rounded-lg overflow-x-auto">
+                     <table className="w-full text-left text-[13px]">
+                       <thead className="bg-[#f8f9fa] border-b">
+                         <tr>
+                           <th className="p-3 font-semibold">Image</th>
+                           <th className="p-3 font-semibold">Produit (ID)</th>
+                           <th className="p-3 font-semibold">Prix</th>
+                           <th className="p-3 font-semibold text-right">Actions</th>
+                         </tr>
+                       </thead>
+                       <tbody>
+                         {products.map(p => (
+                           <tr key={p.id} className="border-b last:border-0 hover:bg-gray-50 transition-colors">
+                             <td className="p-3">
+                               <div className="w-16 h-16 bg-gray-100 rounded-md overflow-hidden relative group border">
+                                 <img src={p.image} className="w-full h-full object-cover" referrerPolicy="no-referrer" />
+                                 <label className="absolute bottom-0 left-0 right-0 bg-black/70 flex items-center justify-center cursor-pointer py-1 text-white hover:bg-theme-primary transition-colors cursor-pointer" title="Modifier l'image">
+                                   <input 
+                                     type="file" 
+                                     accept="image/*" 
+                                     className="hidden" 
+                                     onChange={(e) => {
+                                       if(e.target.files && e.target.files[0]) {
+                                          handleImageUpload(e.target.files[0], p);
+                                       }
+                                     }}
+                                   />
+                                   <Upload size={14} className="text-white" />
+                                 </label>
+                               </div>
+                             </td>
+                             <td className="p-3 font-medium">
+                               {p.nameFr}
+                               <div className="text-[11px] text-theme-muted font-normal mt-0.5">{p.id} - {p.category}</div>
+                             </td>
+                             <td className="p-3 font-bold text-theme-primary">{p.price} DA</td>
+                             <td className="p-3 text-right">
+                               <button 
+                                 className="text-red-400 hover:text-red-600 p-2 ml-1"
+                                 onClick={async () => {
+                                   if(confirm('Supprimer ce produit ?')) {
+                                     try {
+                                       await deleteDoc(doc(db, 'products', p.id));
+                                       setProducts(prev => prev.filter(prod => prod.id !== p.id));
+                                     } catch(e) {
+                                       alert('Erreur de suppression');
+                                     }
+                                   }
+                                 }}
+                               >
+                                 <Trash2 size={16} />
+                               </button>
+                             </td>
+                           </tr>
+                         ))}
+                       </tbody>
+                     </table>
+                   </div>
+                   
+                   {/* Modal Nouveau Produit */}
+                   <AnimatePresence>
+                     {isNewProductModalOpen && (
+                       <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm overflow-y-auto pt-20">
+                         <motion.div 
+                           initial={{ scale: 0.95, opacity: 0 }}
+                           animate={{ scale: 1, opacity: 1 }}
+                           exit={{ scale: 0.95, opacity: 0 }}
+                           className="bg-white rounded-[16px] w-full max-w-[500px] overflow-hidden shadow-2xl my-auto"
+                         >
+                           <div className="p-[20px] border-b flex justify-between items-center text-black">
+                             <h2 className="font-bold text-[18px]">Ajouter un Produit</h2>
+                             <button onClick={() => setIsNewProductModalOpen(false)} className="p-1 hover:bg-gray-100 rounded-full">
+                               <X size={20} />
+                             </button>
+                           </div>
+                           <form onSubmit={handleNewProductSubmit} className="p-[20px] flex flex-col gap-4 text-theme-text text-[14px]">
+                             <div>
+                               <label className="block text-[12px] font-bold text-gray-500 mb-1">Nom (Français) *</label>
+                               <input required className="w-full border rounded-[8px] p-2 bg-gray-50 focus:bg-white transition-colors" value={newProduct.nameFr || ''} onChange={e => setNewProduct({...newProduct, nameFr: e.target.value})} />
+                             </div>
+                             <div>
+                               <label className="block text-[12px] font-bold text-gray-500 mb-1">Nom (Arabe) *</label>
+                               <input required dir="rtl" className="w-full border rounded-[8px] p-2 bg-gray-50 focus:bg-white transition-colors" value={newProduct.nameAr || ''} onChange={e => setNewProduct({...newProduct, nameAr: e.target.value})} />
+                             </div>
+                             <div className="flex gap-4">
+                               <div className="flex-1">
+                                 <label className="block text-[12px] font-bold text-gray-500 mb-1">Prix (DA) *</label>
+                                 <input required type="number" min="0" className="w-full border rounded-[8px] p-2 bg-gray-50 focus:bg-white transition-colors" value={newProduct.price || ''} onChange={e => setNewProduct({...newProduct, price: Number(e.target.value)})} />
+                               </div>
+                               <div className="flex-1">
+                                 <label className="block text-[12px] font-bold text-gray-500 mb-1">Catégorie *</label>
+                                 <select required className="w-full border rounded-[8px] p-2 bg-gray-50 focus:bg-white transition-colors" value={newProduct.category || 'divers'} onChange={e => setNewProduct({...newProduct, category: e.target.value as Category})}>
+                                   {CATEGORIES_LIST.map(c => <option key={c.id} value={c.id}>{c.fr}</option>)}
+                                 </select>
+                               </div>
+                             </div>
+                             <div>
+                               <label className="block text-[12px] font-bold text-gray-500 mb-1">Description (Français) *</label>
+                               <textarea required rows={2} className="w-full border rounded-[8px] p-2 outline-none bg-gray-50 focus:bg-white transition-colors resize-none" value={newProduct.descriptionFr || ''} onChange={e => setNewProduct({...newProduct, descriptionFr: e.target.value})} />
+                             </div>
+                             <div>
+                               <label className="block text-[12px] font-bold text-gray-500 mb-1">Description (Arabe) *</label>
+                               <textarea required rows={2} dir="rtl" className="w-full border rounded-[8px] p-2 outline-none bg-gray-50 focus:bg-white transition-colors resize-none" value={newProduct.descriptionAr || ''} onChange={e => setNewProduct({...newProduct, descriptionAr: e.target.value})} />
+                             </div>
+                             <div>
+                               <label className="block text-[12px] font-bold text-gray-500 mb-1">Image (Sera générique par défaut, modifiable plus tard)</label>
+                               <input type="file" accept="image/*" className="w-full text-[13px]" onChange={async e => {
+                                 if (e.target.files && e.target.files[0]) {
+                                   try {
+                                     const img = await resizeImage(e.target.files[0]);
+                                     setNewProduct({...newProduct, image: img});
+                                   } catch(err) {
+                                     alert("Erreur lors de la préparation de l'image");
+                                   }
+                                 }
+                               }} />
+                             </div>
+                             <div className="mt-4 flex justify-end">
+                               <button disabled={isSavingProduct} type="submit" className="bg-theme-primary text-white font-bold py-2 px-6 rounded-[8px] hover:opacity-90 disabled:opacity-50 flex items-center gap-2">
+                                 {isSavingProduct ? <Loader2 size={16} className="animate-spin" /> : <CheckCircle size={16} />}
+                                 Enregistrer
+                               </button>
+                             </div>
+                           </form>
+                         </motion.div>
+                       </div>
+                     )}
+                   </AnimatePresence>
+                 </div>
+               )}
+            </motion.div>
+          )}
         </div>
       </main>
 
@@ -513,107 +841,16 @@ export default function App() {
           <span>|</span>
           <span dir="rtl">العربية</span>
         </div>
-        <div>
-          Contact: +213 555 00 00 00 | Suivez-nous: FB / IG
+        <div className="flex items-center gap-[10px]">
+          <span>Contact: +213 555 00 00 00 | Suivez-nous: FB / IG</span>
+          <button onClick={() => navigateTo('admin')} className="text-theme-muted hover:text-theme-primary ml-2">
+            <LockIcon size={14} />
+          </button>
         </div>
       </footer>
 
       {/* Image Editor Modal */}
       <AnimatePresence>
-        {editingProduct && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
-            <motion.div 
-              initial={{ scale: 0.95, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              exit={{ scale: 0.95, opacity: 0 }}
-              className="bg-white rounded-[16px] w-full max-w-[500px] overflow-hidden shadow-2xl"
-            >
-              <div className="p-[20px] border-b flex justify-between items-center text-black">
-                <h2 className="font-bold text-[18px]">Créez l'image avec l'IA</h2>
-                <button onClick={() => { setEditingProduct(null); setImagePrompt(''); }} className="p-1 hover:bg-gray-100 rounded-full">
-                  <X size={20} />
-                </button>
-              </div>
-              <div className="p-[20px] flex gap-4 text-black">
-                <div className="w-[120px] h-[120px] shrink-0 bg-gray-100 rounded-[8px] overflow-hidden">
-                  <img src={editingProduct.image} alt="current" className="w-full h-full object-cover" referrerPolicy="no-referrer" />
-                </div>
-                <div className="flex-grow flex flex-col gap-3">
-                  <div>
-                    <h3 className="font-semibold text-[14px]">{editingProduct.nameFr}</h3>
-                    <p className="text-[12px] text-gray-500">{editingProduct.descriptionFr}</p>
-                  </div>
-                  <textarea 
-                    className="w-full resize-none border rounded-[8px] p-[10px] text-[13px] outline-none focus:border-theme-primary"
-                    rows={3}
-                    placeholder="Ex: Une photo professionnelle d'une chaise en plastique blanc sur fond neutre..."
-                    value={imagePrompt}
-                    onChange={(e) => setImagePrompt(e.target.value)}
-                  />
-                </div>
-              </div>
-              <div className="p-[20px] border-t bg-gray-50 flex justify-end">
-                <button 
-                  disabled={isGenerating}
-                  onClick={async () => {
-                    const studio = (window as any).aistudio;
-                    if (studio) {
-                      if (!(await studio.hasSelectedApiKey())) {
-                        await studio.openSelectKey();
-                      }
-                    }
-                    
-                    const apiKey = process.env.GEMINI_API_KEY || (process as any).env.API_KEY || (import.meta as any).env.VITE_GEMINI_API_KEY;
-                    if (!apiKey) {
-                      alert("Veuillez configurer une clé API Gemini pour pouvoir générer des images.");
-                      return;
-                    }
-
-                    setIsGenerating(true);
-                    try {
-                      const ai = new GoogleGenAI({ apiKey });
-                      const finalPrompt = imagePrompt.trim() !== '' 
-                        ? imagePrompt 
-                        : `A high quality, realistic e-commerce product photo with a pure white background of: ${editingProduct.nameFr}. No text or extra objects.`;
-                      
-                      const response = await ai.models.generateContent({
-                        model: 'gemini-3.1-flash-image-preview',
-                        contents: {
-                          parts: [{ text: finalPrompt }]
-                        }
-                      });
-
-                      let newImgUrl = '';
-                      const parts = response.candidates?.[0]?.content?.parts || [];
-                      for (const part of parts) {
-                        if (part.inlineData) {
-                          newImgUrl = `data:${part.inlineData.mimeType || 'image/png'};base64,${part.inlineData.data}`;
-                          break;
-                        }
-                      }
-
-                      if (newImgUrl) {
-                        setProducts(prev => prev.map(p => p.id === editingProduct.id ? { ...p, image: newImgUrl } : p));
-                        setEditingProduct(null);
-                        setImagePrompt('');
-                      } else {
-                        alert("L'IA n'a pas pu générer l'image. Veuillez réessayer.");
-                      }
-                    } catch (e) {
-                      console.error("Image generation error:", e);
-                      alert("Erreur lors de la génération. Assurez-vous d'avoir une clé API valide.");
-                    } finally {
-                      setIsGenerating(false);
-                    }
-                  }}
-                  className="bg-theme-primary text-white font-bold text-[14px] px-[20px] py-[10px] rounded-[6px] hover:opacity-90 flex items-center gap-2 disabled:opacity-50"
-                >
-                  {isGenerating ? <><Loader2 size={16} className="animate-spin" /> Génération...</> : <><Sparkles size={16} /> Générer</>}
-                </button>
-              </div>
-            </motion.div>
-          </div>
-        )}
       </AnimatePresence>
 
     </div>
