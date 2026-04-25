@@ -11,7 +11,7 @@ let aiClient: any = null;
 const getAiClient = () => {
   if (!aiClient) {
     // @ts-ignore
-    const apiKey = typeof process !== 'undefined' ? process.env?.GEMINI_API_KEY : import.meta.env?.VITE_GEMINI_API_KEY;
+    const apiKey = process.env.GEMINI_API_KEY;
     if (!apiKey) {
       console.warn("API key not found, AI generation will fail");
     }
@@ -374,15 +374,17 @@ export default function App() {
     try {
       setIsGeneratingMetadata(true);
       const result = await getAiClient().models.generateContent({
-        model: "gemini-2.5-flash",
+        model: "gemini-3-flash-preview",
         contents: `You are an assistant for a store in Algeria. Generate metadata for this product: "${name}".
-        Provide JSON with: "nameAr", "descriptionFr" (short marketing phrase), "descriptionAr", "category" (one of: ${CATEGORIES_LIST.map(c=>c.id).join(', ')}). No markdown blocks.`
+        Provide ONLY valid JSON with no markdown formatting. The JSON must contain exactly these keys: "nameAr", "descriptionFr" (short marketing phrase), "descriptionAr", "category" (one of: ${CATEGORIES_LIST.map(c=>c.id).join(', ')}).`
       });
-      const data = JSON.parse(result.text || "{}");
+      let text = result.text || "{}";
+      text = text.replace(/```(json)?\n?/g, '').replace(/```/g, '').trim();
+      const data = JSON.parse(text);
       setNewProduct(prev => ({ ...prev, ...data }));
-    } catch (error) {
+    } catch (error: any) {
       console.error(error);
-      alert("Erreur lors de la génération avec l'IA");
+      alert("Erreur IA: " + (error?.message || "Erreur inconnue"));
     } finally {
       setIsGeneratingMetadata(false);
     }
@@ -393,17 +395,18 @@ export default function App() {
     if(!newProduct.nameFr || !newProduct.price || !newProduct.category) return;
     try {
       setIsSavingProduct(true);
-      const id = Date.now().toString();
+      const isEditing = !!newProduct.id;
+      const id = newProduct.id || Date.now().toString();
       const productData = { 
         ...newProduct, 
         id, 
         image: newProduct.image || `https://placehold.co/400x300/e2e8f0/334155?text=${encodeURIComponent(newProduct.nameFr || '')}` 
       } as Product;
       await setDoc(doc(db, 'products', id), productData);
-      setProducts(prev => [productData, ...prev]);
+      setProducts(prev => isEditing ? prev.map(p => p.id === id ? productData : p) : [productData, ...prev]);
       setIsNewProductModalOpen(false);
       setNewProduct({ category: 'divers' });
-      showToast("Produit ajouté avec succès");
+      showToast(isEditing ? "Produit modifié avec succès" : "Produit ajouté avec succès");
     } catch(e) {
       alert('Erreur: ' + (e as Error).message);
     } finally {
@@ -894,7 +897,16 @@ export default function App() {
                                         <div className="text-[12px] text-theme-muted font-mono">{p.id} - {p.category}</div>
                                       </td>
                                       <td className="p-[15px] font-bold text-theme-text">{p.price} DA</td>
-                                      <td className="p-[15px] text-right">
+                                      <td className="p-[15px] text-right flex gap-2 justify-end">
+                                        <button 
+                                          className="text-theme-muted hover:text-theme-primary bg-theme-bg hover:bg-theme-bg/80 p-[8px] rounded-[8px] transition-colors inline-flex border border-theme-border"
+                                          onClick={() => {
+                                            setNewProduct(p);
+                                            setIsNewProductModalOpen(true);
+                                          }}
+                                        >
+                                          <Pencil size={16} />
+                                        </button>
                                         <button 
                                           className="text-theme-muted hover:text-red-600 bg-theme-bg hover:bg-red-50 p-[8px] rounded-[8px] transition-colors inline-flex border border-theme-border"
                                           onClick={async () => {
@@ -1049,12 +1061,12 @@ export default function App() {
                   </div>
                 </div>
                 <div>
-                  <label className="block text-[12px] font-bold text-theme-muted mb-1 uppercase tracking-wider">Description (Français) *</label>
-                  <textarea required rows={2} className="w-full border border-theme-border rounded-[12px] p-[12px] bg-theme-bg focus:bg-white outline-none transition-colors resize-none" value={newProduct.descriptionFr || ''} onChange={e => setNewProduct({...newProduct, descriptionFr: e.target.value})} />
+                  <label className="block text-[12px] font-bold text-theme-muted mb-1 uppercase tracking-wider">Description (Français)</label>
+                  <textarea rows={2} className="w-full border border-theme-border rounded-[12px] p-[12px] bg-theme-bg focus:bg-white outline-none transition-colors resize-none" value={newProduct.descriptionFr || ''} onChange={e => setNewProduct({...newProduct, descriptionFr: e.target.value})} />
                 </div>
                 <div>
-                  <label className="block text-[12px] font-bold text-theme-muted mb-1 uppercase tracking-wider">Description (Arabe) *</label>
-                  <textarea required rows={2} dir="rtl" className="w-full border border-theme-border rounded-[12px] p-[12px] bg-theme-bg focus:bg-white outline-none transition-colors resize-none" value={newProduct.descriptionAr || ''} onChange={e => setNewProduct({...newProduct, descriptionAr: e.target.value})} />
+                  <label className="block text-[12px] font-bold text-theme-muted mb-1 uppercase tracking-wider">Description (Arabe)</label>
+                  <textarea rows={2} dir="rtl" className="w-full border border-theme-border rounded-[12px] p-[12px] bg-theme-bg focus:bg-white outline-none transition-colors resize-none" value={newProduct.descriptionAr || ''} onChange={e => setNewProduct({...newProduct, descriptionAr: e.target.value})} />
                 </div>
                 <div className="bg-theme-bg border border-theme-border border-dashed p-[16px] rounded-[12px]">
                   <label className="block text-[12px] font-bold text-theme-text mb-1 flex items-center justify-between">
