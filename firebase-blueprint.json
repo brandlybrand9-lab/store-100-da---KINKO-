@@ -13,15 +13,37 @@
         "descriptionAr": { "type": "string" },
         "image": { "type": "string" },
         "price": { "type": "number" },
-        "createdAt": { "type": "number" }
+        "createdAt": { "type": "number" },
+        "deleted": { "type": "boolean" }
       },
       "required": ["id", "nameFr", "nameAr", "category", "image", "price"]
+    },
+    "order": {
+      "title": "Order",
+      "description": "Customer order",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "items": { "type": "array" },
+        "totalPrice": { "type": "number" },
+        "name": { "type": "string" },
+        "phone": { "type": "string" },
+        "city": { "type": "string" },
+        "address": { "type": "string" },
+        "status": { "type": "string", "enum": ["pending", "delivered", "cancelled"] },
+        "createdAt": { "type": "number" }
+      },
+      "required": ["id", "items", "totalPrice", "name", "phone", "city", "address", "status", "createdAt"]
     }
   },
   "firestore": {
     "/products/{productId}": {
       "schema": "product",
       "description": "Products available in the store"
+    },
+    "/orders/{orderId}": {
+      "schema": "order",
+      "description": "Customer orders"
     }
   }
 }

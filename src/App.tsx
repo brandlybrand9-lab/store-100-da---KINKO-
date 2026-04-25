@@ -1,8 +1,8 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { ShoppingCart, Menu, X, Trash2, Package, Shirt, Gamepad2, CheckCircle, ChevronRight, MapPin, Truck, Phone, Home, Hammer, Sparkles, Tv, PenTool, Gift, Pencil, Loader2, Car, Settings, Baby, Briefcase, Music, TreePine, Dog, Key, Dumbbell, Book, Sofa, Store, Heart, Watch, Gem, Palette, Archive, Activity, LockIcon, LogOut, Upload, Plus, LayoutDashboard, ShoppingBag, Layers, ArrowRight, ChevronDown, Banknote, PhoneCall, Moon, Sun, Globe } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { db, auth } from './lib/firebase';
-import { collection, getDocs, doc, setDoc, deleteDoc, updateDoc } from 'firebase/firestore';
+import { collection, getDocs, doc, setDoc, deleteDoc, updateDoc, onSnapshot } from 'firebase/firestore';
 import { signInWithPopup, GoogleAuthProvider, signInWithEmailAndPassword, signOut, onAuthStateChanged, User } from 'firebase/auth';
 import { removeBackground } from '@imgly/background-removal';
 import { GoogleGenAI, Type } from "@google/genai";
@@ -11,9 +11,10 @@ let aiClient: any = null;
 const getAiClient = () => {
   if (!aiClient) {
     // @ts-ignore
-    const apiKey = process.env.GEMINI_API_KEY;
+    const apiKey = import.meta.env?.VITE_GEMINI_API_KEY || (typeof process !== 'undefined' ? process.env?.GEMINI_API_KEY : null);
     if (!apiKey) {
       console.warn("API key not found, AI generation will fail");
+      alert("Veuillez configurer une clé API Gemini valide (VITE_GEMINI_API_KEY).");
     }
     aiClient = new GoogleGenAI({ apiKey: apiKey || 'dummy-key' });
   }
@@ -272,6 +273,7 @@ export default function App() {
 
   // Checkout states
   const [checkoutForm, setCheckoutForm] = useState({ name: '', phone: '', city: 'cherchell', address: '' });
+  const [isSubmittingOrder, setIsSubmittingOrder] = useState(false);
   
   // Admin states
   const [user, setUser] = useState<User | null>(null);
@@ -284,6 +286,33 @@ export default function App() {
   const [isGeneratingMetadata, setIsGeneratingMetadata] = useState(false);
   const [adminTab, setAdminTab] = useState<'dashboard' | 'commandes' | 'produits' | 'collections'>('dashboard');
   const [toastMessage, setToastMessage] = useState<string | null>(null);
+  const [orders, setOrders] = useState<any[]>([]);
+
+  const handleOrderSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if(cart.length === 0) return;
+    if(!checkoutForm.name || !checkoutForm.phone || !checkoutForm.city || !checkoutForm.address) return;
+    
+    try {
+      setIsSubmittingOrder(true);
+      const deliveryFee = checkoutForm.city === 'autres' ? 400 : 0;
+      const orderData = {
+        id: Date.now().toString() + Math.random().toString(36).substr(2, 5),
+        items: cart,
+        totalPrice: totalCart + deliveryFee,
+        ...checkoutForm,
+        status: 'pending',
+        createdAt: Date.now()
+      };
+      await setDoc(doc(db, 'orders', orderData.id), orderData);
+      setCart([]);
+      navigateTo('success');
+    } catch(err) {
+      alert("Erreur lors de la commande: " + (err as Error).message);
+    } finally {
+      setIsSubmittingOrder(false);
+    }
+  };
 
   const showToast = (msg: string) => {
     setToastMessage(msg);
@@ -322,6 +351,17 @@ export default function App() {
     };
     fetchProducts();
   }, []);
+
+  useEffect(() => {
+    if (!user) return;
+    const unsub = onSnapshot(collection(db, 'orders'), (snap) => {
+      const dynamicOrders = snap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+      setOrders(dynamicOrders.sort((a: any, b: any) => b.createdAt - a.createdAt));
+    }, (err) => {
+      console.error(err);
+    });
+    return () => unsub();
+  }, [user]);
 
   const processImage = async (file: File): Promise<string> => {
     return new Promise((resolve, reject) => {
@@ -602,7 +642,7 @@ export default function App() {
               </div>
 
               <div className="flex flex-col lg:flex-row gap-[40px]">
-                <form className="flex-grow flex flex-col gap-[30px]" onSubmit={(e) => { e.preventDefault(); navigateTo('success'); }}>
+                <form className="flex-grow flex flex-col gap-[30px]" onSubmit={handleOrderSubmit}>
                   
                   <div className="bg-white border border-theme-border rounded-[24px] p-[30px] shadow-sm">
                     <h2 className="text-[20px] font-bold text-theme-text mb-[24px] tracking-tight">Informations de livraison</h2>
@@ -644,7 +684,8 @@ export default function App() {
                     </div>
                   </div>
 
-                  <button type="submit" className="w-full bg-theme-primary text-white font-black py-[20px] rounded-[16px] text-[18px] shadow-lg hover:-translate-y-1 transition-all hover:shadow-xl mt-[10px]">
+                  <button disabled={isSubmittingOrder} type="submit" className="w-full bg-theme-primary text-white font-black py-[20px] rounded-[16px] text-[18px] shadow-lg hover:-translate-y-1 transition-all hover:shadow-xl mt-[10px] disabled:opacity-50 flex justify-center items-center gap-2">
+                    {isSubmittingOrder ? <Loader2 size={24} className="animate-spin" /> : null}
                     CONFIRMER LA COMMANDE ({totalCart + deliveryFee} DA)
                   </button>
 
@@ -822,17 +863,17 @@ export default function App() {
                             <div className="grid grid-cols-1 sm:grid-cols-3 gap-[25px]">
                               <div className="bg-white border border-theme-border rounded-[16px] p-[24px] relative overflow-hidden shadow-sm">
                                 <div className="text-[11px] font-bold text-theme-muted mb-[15px] tracking-[1.5px] uppercase">Total commandes</div>
-                                <div className="text-[36px] font-serif font-normal leading-none tracking-tight">0</div>
+                                <div className="text-[36px] font-serif font-normal leading-none tracking-tight">{orders.length}</div>
                                 <ShoppingBag className="absolute right-4 top-1/2 -translate-y-1/2 text-theme-border opacity-50" size={80} strokeWidth={1} />
                               </div>
                               <div className="bg-white border border-theme-border rounded-[16px] p-[24px] relative overflow-hidden shadow-sm">
                                 <div className="text-[11px] font-bold text-theme-muted mb-[15px] tracking-[1.5px] uppercase">Chiffre d'affaires</div>
-                                <div className="text-[36px] font-serif font-normal text-[#e67e22] leading-none tracking-tight">0 <span className="text-[20px] font-sans font-bold">DA</span></div>
+                                <div className="text-[36px] font-serif font-normal text-[#e67e22] leading-none tracking-tight">{orders.filter(o => o.status === 'delivered').reduce((acc, curr) => acc + curr.totalPrice, 0)} <span className="text-[20px] font-sans font-bold">DA</span></div>
                                 <span className="absolute right-4 top-1/2 -translate-y-1/2 text-theme-border text-[80px] font-light leading-none opacity-50">$</span>
                               </div>
                               <div className="bg-white border border-theme-border rounded-[16px] p-[24px] relative overflow-hidden shadow-sm">
                                 <div className="text-[11px] font-bold text-theme-muted mb-[15px] tracking-[1.5px] uppercase">En attente d'expédition</div>
-                                <div className="text-[36px] font-serif font-normal leading-none tracking-tight">0</div>
+                                <div className="text-[36px] font-serif font-normal leading-none tracking-tight">{orders.filter(o => o.status === 'pending').length}</div>
                                 <Activity className="absolute right-4 top-1/2 -translate-y-1/2 text-theme-border opacity-50" size={80} strokeWidth={1} />
                               </div>
                             </div>
@@ -940,12 +981,78 @@ export default function App() {
                           </div>
                         )}
 
-                        {(adminTab === 'commandes' || adminTab === 'collections') && (
+                        {adminTab === 'collections' && (
                            <div className="flex flex-col items-center justify-center py-[80px] text-center bg-white border border-theme-border rounded-[16px] shadow-sm">
                              <Package size={56} className="text-theme-border mb-[20px]" strokeWidth={1} />
                              <h3 className="text-[20px] font-serif font-bold text-theme-text mb-[8px]">Bientôt disponible</h3>
                              <p className="text-[14px] text-theme-muted max-w-[300px]">Cette fonctionnalité sera disponible dans une prochaine mise à jour.</p>
                            </div>
+                        )}
+
+                        {adminTab === 'commandes' && (
+                          <div className="bg-white border border-theme-border rounded-[16px] shadow-sm overflow-hidden min-h-[500px]">
+                            <div className="p-[20px] border-b border-theme-border bg-[#fafafa]">
+                              <h3 className="font-bold text-[18px]">Liste des commandes</h3>
+                            </div>
+                            <div className="overflow-x-auto">
+                              <table className="w-full text-[14px] text-left">
+                                <thead>
+                                  <tr className="bg-theme-bg/50 border-b border-theme-border text-[12px] uppercase tracking-wider text-theme-muted">
+                                    <th className="p-[15px] font-bold">Client / Réf</th>
+                                    <th className="p-[15px] font-bold">Date</th>
+                                    <th className="p-[15px] font-bold">Ville</th>
+                                    <th className="p-[15px] font-bold text-right">Total</th>
+                                    <th className="p-[15px] font-bold text-center">Status</th>
+                                    <th className="p-[15px] font-bold">Actions</th>
+                                  </tr>
+                                </thead>
+                                <tbody>
+                                  {orders.map((o, idx) => (
+                                    <tr key={idx} className="border-b border-theme-border last:border-0 hover:bg-theme-bg/30">
+                                      <td className="p-[15px]">
+                                        <div className="font-bold text-theme-text">{o.name}</div>
+                                        <div className="text-[12px] text-theme-muted font-mono">{o.phone}</div>
+                                        <div className="text-[11px] text-theme-muted">#{o.id}</div>
+                                      </td>
+                                      <td className="p-[15px] whitespace-nowrap text-theme-muted">{new Date(o.createdAt).toLocaleDateString()} {new Date(o.createdAt).toLocaleTimeString()}</td>
+                                      <td className="p-[15px]">
+                                        <div className="font-bold text-theme-text">{o.city}</div>
+                                        <div className="text-[12px] text-theme-muted max-w-[150px] truncate" title={o.address}>{o.address}</div>
+                                      </td>
+                                      <td className="p-[15px] font-bold text-theme-text text-right">{o.totalPrice} DA</td>
+                                      <td className="p-[15px] text-center">
+                                        <span className={`px-[8px] py-[4px] rounded-[6px] text-[11px] font-bold uppercase tracking-wider ${o.status === 'delivered' ? 'bg-green-100 text-green-700' : o.status === 'cancelled' ? 'bg-red-100 text-red-700' : 'bg-orange-100 text-orange-700'}`}>
+                                          {o.status}
+                                        </span>
+                                      </td>
+                                      <td className="p-[15px]">
+                                        <div className="flex items-center gap-[5px]">
+                                          <select 
+                                            className="text-[12px] bg-theme-bg border border-theme-border rounded-[8px] p-[6px] outline-none cursor-pointer"
+                                            value={o.status}
+                                            onChange={async (e) => {
+                                              const newStatus = e.target.value;
+                                              const updatedOrder = { ...o, status: newStatus };
+                                              await setDoc(doc(db, 'orders', o.id), updatedOrder);
+                                              setOrders(prev => prev.map(p => p.id === o.id ? updatedOrder : p));
+                                              showToast('Status mis à jour');
+                                            }}
+                                          >
+                                            <option value="pending">En attente</option>
+                                            <option value="delivered">Livrée</option>
+                                            <option value="cancelled">Annulée</option>
+                                          </select>
+                                        </div>
+                                      </td>
+                                    </tr>
+                                  ))}
+                                </tbody>
+                              </table>
+                              {orders.length === 0 && (
+                                <div className="p-[30px] text-center text-theme-muted font-medium">Aucune commande pour le moment.</div>
+                              )}
+                            </div>
+                          </div>
                         )}
                       </div>
                     </div>

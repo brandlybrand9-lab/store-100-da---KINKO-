@@ -40,6 +40,19 @@ service cloud.firestore {
              (!('deleted' in data.keys()) || data.deleted is bool);
     }
 
+    function isValidOrder(data) {
+      return data.keys().hasAll(['id', 'items', 'totalPrice', 'name', 'phone', 'city', 'address', 'status', 'createdAt']) &&
+             data.id is string &&
+             data.items is list &&
+             data.totalPrice is number &&
+             data.name is string &&
+             data.phone is string &&
+             data.city is string &&
+             data.address is string &&
+             data.status in ["pending", "delivered", "cancelled"] &&
+             data.createdAt is number;
+    }
+
     match /products/{productId} {
       allow read: if true;
       allow create: if isAdmin() &&
@@ -52,6 +65,17 @@ service cloud.firestore {
                     isValidProduct(incoming());
                     
       allow delete: if isAdmin() && isValidId(productId);
+    }
+
+    match /orders/{orderId} {
+      allow read: if isAdmin();
+      allow create: if isValidId(orderId) &&
+                       isValidOrder(incoming()) &&
+                       incoming().id == orderId;
+      allow update: if isAdmin() &&
+                       isValidId(orderId) &&
+                       isValidOrder(incoming());
+      allow delete: if isAdmin() && isValidId(orderId);
     }
   }
 }
