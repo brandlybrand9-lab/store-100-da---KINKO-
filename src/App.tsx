@@ -7,7 +7,18 @@ import { signInWithPopup, GoogleAuthProvider, signInWithEmailAndPassword, signOu
 import { removeBackground } from '@imgly/background-removal';
 import { GoogleGenAI, Type } from "@google/genai";
 
-const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
+let aiClient: any = null;
+const getAiClient = () => {
+  if (!aiClient) {
+    // @ts-ignore
+    const apiKey = typeof process !== 'undefined' ? process.env?.GEMINI_API_KEY : import.meta.env?.VITE_GEMINI_API_KEY;
+    if (!apiKey) {
+      console.warn("API key not found, AI generation will fail");
+    }
+    aiClient = new GoogleGenAI({ apiKey: apiKey || 'dummy-key' });
+  }
+  return aiClient;
+};
 
 // --- Types ---
 type Category = 'plastique' | 'vetements_homme' | 'vetements_femme' | 'vetements_enfants' | 'jouets' | 'maison' | 'bricolage' | 'hygiene' | 'electronique' | 'papeterie' | 'packs' | 'vehicules' | 'pieces_auto' | 'bebes' | 'bagages' | 'musique' | 'jardin' | 'animaux' | 'locations' | 'sport' | 'livres' | 'meubles' | 'videgrenier' | 'sante' | 'bijoux' | 'antiquites' | 'art' | 'divers' | 'immobilier';
@@ -170,16 +181,19 @@ const CartDrawer = ({
   return (
     <AnimatePresence>
       {isOpen && (
-        <>
-          <motion.div 
-            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-            className="fixed inset-0 bg-black/20 z-50 backdrop-blur-sm"
-            onClick={onClose}
-          />
-          <motion.div 
-            initial={{ x: '100%' }} animate={{ x: 0 }} exit={{ x: '100%' }} transition={{ type: 'spring', damping: 25, stiffness: 200 }}
-            className="fixed top-0 right-0 h-full w-full sm:w-[360px] bg-theme-bg z-50 shadow-2xl flex flex-col sm:rounded-l-[24px] border-l border-theme-border"
-          >
+        <motion.div 
+          key="overlay"
+          initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+          className="fixed inset-0 bg-black/20 z-50 backdrop-blur-sm"
+          onClick={onClose}
+        />
+      )}
+      {isOpen && (
+        <motion.div 
+          key="drawer"
+          initial={{ x: '100%' }} animate={{ x: 0 }} exit={{ x: '100%' }} transition={{ type: 'spring', damping: 25, stiffness: 200 }}
+          className="fixed top-0 right-0 h-full w-full sm:w-[360px] bg-theme-bg z-50 shadow-2xl flex flex-col sm:rounded-l-[24px] border-l border-theme-border"
+        >
             <div className="p-[24px] bg-theme-bg border-b border-theme-border flex justify-between items-center sm:rounded-tl-[24px] shrink-0">
               <span className="text-[18px] font-bold text-theme-text tracking-tight">Mon Panier</span>
               <span className="text-theme-muted flex items-center gap-2">
@@ -222,7 +236,6 @@ const CartDrawer = ({
               </div>
             )}
           </motion.div>
-        </>
       )}
     </AnimatePresence>
   );
@@ -340,7 +353,7 @@ export default function App() {
   const generateMetadataForProduct = async (name: string) => {
     try {
       setIsGeneratingMetadata(true);
-      const result = await ai.models.generateContent({
+      const result = await getAiClient().models.generateContent({
         model: "gemini-2.5-flash",
         contents: `You are an assistant for a store in Algeria. Generate metadata for this product: "${name}".
         Provide JSON with: "nameAr", "descriptionFr" (short marketing phrase), "descriptionAr", "category" (one of: ${CATEGORIES_LIST.map(c=>c.id).join(', ')}). No markdown blocks.`
@@ -888,16 +901,19 @@ export default function App() {
 
       <AnimatePresence>
         {isMobileMenuOpen && (
-          <>
-            <motion.div 
-              initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-              className="fixed inset-0 bg-black/40 z-50 backdrop-blur-sm md:hidden"
-              onClick={() => setIsMobileMenuOpen(false)}
-            />
-            <motion.div 
-              initial={{ x: '-100%' }} animate={{ x: 0 }} exit={{ x: '-100%' }} transition={{ type: 'spring', damping: 25, stiffness: 200 }}
-              className="fixed top-0 left-0 h-full w-[280px] bg-theme-bg z-50 shadow-2xl flex flex-col border-r border-theme-border md:hidden"
-            >
+          <motion.div 
+            key="mobile-overlay"
+            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black/40 z-50 backdrop-blur-sm md:hidden"
+            onClick={() => setIsMobileMenuOpen(false)}
+          />
+        )}
+        {isMobileMenuOpen && (
+          <motion.div 
+            key="mobile-drawer"
+            initial={{ x: '-100%' }} animate={{ x: 0 }} exit={{ x: '-100%' }} transition={{ type: 'spring', damping: 25, stiffness: 200 }}
+            className="fixed top-0 left-0 h-full w-[280px] bg-theme-bg z-50 shadow-2xl flex flex-col border-r border-theme-border md:hidden"
+          >
               <div className="p-[20px] bg-theme-bg border-b border-theme-border flex justify-between items-center shrink-0">
                 <span className="font-serif text-[18px] font-bold text-theme-text tracking-tight">Menu</span>
                 <button onClick={() => setIsMobileMenuOpen(false)} className="hover:text-theme-primary bg-white p-1.5 rounded-full shadow-sm ring-1 ring-theme-border"><X size={16} /></button>
@@ -922,13 +938,16 @@ export default function App() {
                 </div>
               </div>
             </motion.div>
-          </>
         )}
       </AnimatePresence>
 
       <AnimatePresence>
         {isNewProductModalOpen && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm shadow-2xl">
+          <motion.div 
+            key="modal-backdrop"
+            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm shadow-2xl"
+          >
             <motion.div 
               initial={{ scale: 0.95, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
@@ -1009,7 +1028,7 @@ export default function App() {
                 </div>
               </form>
             </motion.div>
-          </div>
+          </motion.div>
         )}
       </AnimatePresence>
 
