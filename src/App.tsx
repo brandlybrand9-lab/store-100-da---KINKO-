@@ -693,6 +693,36 @@ export default function App() {
                       <h2 className="text-[24px] font-bold text-center mb-[30px]">Accès Admin</h2>
                       <p className="text-sm text-theme-muted mb-6 text-center">Vous devez être l'administrateur certifié.</p>
                       
+                      <form className="flex flex-col gap-4 mb-4" onSubmit={async (e) => {
+                        e.preventDefault();
+                        try {
+                          await signInWithEmailAndPassword(auth, email, password);
+                        } catch (err: any) {
+                          alert('Erreur: ' + err.message);
+                        }
+                      }}>
+                        <div>
+                          <label className="block text-[12px] font-bold text-theme-muted mb-1 uppercase tracking-wider">Email</label>
+                          <input type="email" required className="w-full border border-theme-border rounded-[12px] p-[12px] bg-theme-bg focus:bg-white focus:border-theme-primary outline-none transition-all text-[15px]" value={email} onChange={e => setEmail(e.target.value)} />
+                        </div>
+                        <div>
+                          <label className="block text-[12px] font-bold text-theme-muted mb-1 uppercase tracking-wider">Mot de passe</label>
+                          <input type="password" required className="w-full border border-theme-border rounded-[12px] p-[12px] bg-theme-bg focus:bg-white focus:border-theme-primary outline-none transition-all text-[15px]" value={password} onChange={e => setPassword(e.target.value)} />
+                        </div>
+                        <button type="submit" className="w-full bg-theme-text text-theme-secondary font-bold py-[12px] rounded-[12px] hover:opacity-90 flex items-center justify-center gap-2 mt-2">
+                          Se connecter
+                        </button>
+                      </form>
+
+                      <div className="relative mb-4">
+                        <div className="absolute inset-0 flex items-center">
+                          <div className="w-full border-t border-gray-200"></div>
+                        </div>
+                        <div className="relative flex justify-center text-sm">
+                          <span className="px-2 bg-white text-gray-500">Ou</span>
+                        </div>
+                      </div>
+
                       <div className="flex flex-col gap-4">
                         <button 
                           onClick={async () => { try { await signInWithPopup(auth, new GoogleAuthProvider()); } catch(e) { alert('Erreur Google Auth'); } }} 
