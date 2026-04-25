@@ -243,7 +243,7 @@ const CartDrawer = ({
 
 export default function App() {
   const [view, setView] = useState<'home' | 'products' | 'checkout' | 'success' | 'admin'>('home');
-  const [category, setCategory] = useState<Category>('diver' as Category);
+  const [category, setCategory] = useState<Category>('divers');
   const [cart, setCart] = useState<CartItem[]>([]);
   const [isCartOpen, setIsCartOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
@@ -283,6 +283,12 @@ export default function App() {
   const [isSavingProduct, setIsSavingProduct] = useState(false);
   const [isGeneratingMetadata, setIsGeneratingMetadata] = useState(false);
   const [adminTab, setAdminTab] = useState<'dashboard' | 'commandes' | 'produits' | 'collections'>('dashboard');
+  const [toastMessage, setToastMessage] = useState<string | null>(null);
+
+  const showToast = (msg: string) => {
+    setToastMessage(msg);
+    setTimeout(() => setToastMessage(null), 3000);
+  };
 
   const navigateTo = (newView: typeof view) => { window.scrollTo({ top: 0, behavior: 'smooth' }); setView(newView); };
 
@@ -306,8 +312,9 @@ export default function App() {
       try {
         const snap = await getDocs(collection(db, 'products'));
         const dynamicProducts = snap.docs.map(doc => ({ id: doc.id, ...doc.data() } as Product));
-        const allProducts = [...dynamicProducts, ...INITIAL_PRODUCTS];
-        const uniqueProducts = Array.from(new Map(allProducts.map(item => [item.id, item])).values());
+        const allProducts = [...INITIAL_PRODUCTS, ...dynamicProducts];
+        const uniqueProducts = Array.from(new Map(allProducts.map(item => [item.id, item])).values())
+          .filter((p: any) => !p.deleted);
         setProducts(uniqueProducts);
       } catch (err) {
         setProducts(INITIAL_PRODUCTS);
@@ -317,32 +324,45 @@ export default function App() {
   }, []);
 
   const processImage = async (file: File): Promise<string> => {
-    const imgObjUrl = URL.createObjectURL(file);
-    try {
-      const blob = await removeBackground(imgObjUrl);
-      return new Promise((resolve, reject) => {
-        const reader = new FileReader();
-        reader.onloadend = () => resolve(reader.result as string);
-        reader.onerror = reject;
-        reader.readAsDataURL(blob);
-      });
-    } catch (e) {
-      console.error("Background removal failed", e);
-      return new Promise((resolve, reject) => {
-        const reader = new FileReader();
-        reader.onloadend = () => resolve(reader.result as string);
-        reader.onerror = reject;
-        reader.readAsDataURL(file);
-      });
-    }
+    return new Promise((resolve, reject) => {
+      const img = new Image();
+      img.src = URL.createObjectURL(file);
+      img.onload = async () => {
+        const canvas = document.createElement('canvas');
+        const MAX_WIDTH = 500;
+        const scale = Math.min(1, MAX_WIDTH / img.width);
+        canvas.width = img.width * scale;
+        canvas.height = img.height * scale;
+        const ctx = canvas.getContext('2d');
+        if (!ctx) return reject();
+        ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+        
+        canvas.toBlob(async (blob) => {
+          if (!blob) return reject();
+          try {
+            const noBgBlob = await removeBackground(URL.createObjectURL(blob));
+            const reader = new FileReader();
+            reader.onloadend = () => resolve(reader.result as string);
+            reader.readAsDataURL(noBgBlob);
+          } catch(e) {
+            const reader = new FileReader();
+            reader.onloadend = () => resolve(reader.result as string);
+            reader.readAsDataURL(blob);
+          }
+        }, 'image/webp', 0.8);
+      };
+      img.onerror = reject;
+    });
   };
 
   const handleImageUpload = async (file: File, p: Product) => {
     try {
       setIsProcessingImage(true);
       const imgData = await processImage(file);
-      await updateDoc(doc(db, 'products', p.id), { image: imgData });
-      setProducts(prev => prev.map(prod => prod.id === p.id ? { ...prod, image: imgData } : prod));
+      const updatedProduct = { ...p, image: imgData };
+      await setDoc(doc(db, 'products', p.id), updatedProduct);
+      setProducts(prev => prev.map(prod => prod.id === p.id ? updatedProduct : prod));
+      showToast("Image du produit mise à jour");
     } catch(e) {
       alert("Erreur");
     } finally {
@@ -377,12 +397,13 @@ export default function App() {
       const productData = { 
         ...newProduct, 
         id, 
-        image: newProduct.image || `https://placehold.co/400x300/e2e8f0/334155?text=${newProduct.nameFr}` 
+        image: newProduct.image || `https://placehold.co/400x300/e2e8f0/334155?text=${encodeURIComponent(newProduct.nameFr || '')}` 
       } as Product;
       await setDoc(doc(db, 'products', id), productData);
       setProducts(prev => [productData, ...prev]);
       setIsNewProductModalOpen(false);
       setNewProduct({ category: 'divers' });
+      showToast("Produit ajouté avec succès");
     } catch(e) {
       alert('Erreur: ' + (e as Error).message);
     } finally {
@@ -879,8 +900,14 @@ export default function App() {
                                           onClick={async () => {
                                             if(confirm('Supprimer ce produit ?')) {
                                               try {
-                                                await deleteDoc(doc(db, 'products', p.id));
+                                                const original = INITIAL_PRODUCTS.find(i => i.id === p.id);
+                                                if (original) {
+                                                  await setDoc(doc(db, 'products', p.id), { ...original, deleted: true });
+                                                } else {
+                                                  await deleteDoc(doc(db, 'products', p.id));
+                                                }
                                                 setProducts(prev => prev.filter(prod => prod.id !== p.id));
+                                                showToast("Produit supprimé");
                                               } catch(e) {
                                                 alert('Erreur de suppression');
                                               }
@@ -1058,6 +1085,20 @@ export default function App() {
                 </div>
               </form>
             </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      <AnimatePresence>
+        {toastMessage && (
+          <motion.div
+            initial={{ opacity: 0, y: 50, x: '-50%' }}
+            animate={{ opacity: 1, y: 0, x: '-50%' }}
+            exit={{ opacity: 0, y: 50, x: '-50%' }}
+            className="fixed bottom-[80px] left-1/2 z-[100] bg-theme-text text-theme-secondary px-[24px] py-[12px] rounded-[12px] shadow-lg flex items-center gap-[12px] font-bold text-[14px]"
+          >
+            <CheckCircle size={18} className="text-green-400" />
+            {toastMessage}
           </motion.div>
         )}
       </AnimatePresence>

@@ -33,10 +33,11 @@ service cloud.firestore {
              data.nameFr is string && data.nameFr.size() <= 200 &&
              data.nameAr is string && data.nameAr.size() <= 200 &&
              data.category is string && data.category.size() <= 100 &&
-             data.image is string && data.image.size() <= 1048576 && // Base64 can be large, up to 1MB. Firestore limit
+             data.image is string && data.image.size() <= 1048576 &&
              data.price is number &&
-             data.descriptionFr is string && data.descriptionFr.size() <= 1000 &&
-             data.descriptionAr is string && data.descriptionAr.size() <= 1000;
+             (!('descriptionFr' in data.keys()) || (data.descriptionFr is string && data.descriptionFr.size() <= 1000)) &&
+             (!('descriptionAr' in data.keys()) || (data.descriptionAr is string && data.descriptionAr.size() <= 1000)) &&
+             (!('deleted' in data.keys()) || data.deleted is bool);
     }
 
     match /products/{productId} {
@@ -44,8 +45,7 @@ service cloud.firestore {
       allow create: if isAdmin() &&
                     isValidId(productId) &&
                     isValidProduct(incoming()) &&
-                    incoming().id == productId &&
-                    incoming().createdAt is number;
+                    incoming().id == productId;
       
       allow update: if isAdmin() &&
                     isValidId(productId) &&
