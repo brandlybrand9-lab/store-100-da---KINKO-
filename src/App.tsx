@@ -1,10 +1,13 @@
 import React, { useState } from 'react';
-import { ShoppingCart, Menu, X, Trash2, Package, Shirt, Gamepad2, CheckCircle, ChevronRight, MapPin, Truck, Phone, Home, Hammer, Sparkles, Tv, PenTool, Gift, Pencil, Loader2, Car, Settings, Baby, Briefcase, Music, TreePine, Dog, Key, Dumbbell, Book, Sofa, Store, Heart, Watch, Gem, Palette, Archive, Activity, LockIcon, LogOut, Upload, Plus } from 'lucide-react';
+import { ShoppingCart, Menu, X, Trash2, Package, Shirt, Gamepad2, CheckCircle, ChevronRight, MapPin, Truck, Phone, Home, Hammer, Sparkles, Tv, PenTool, Gift, Pencil, Loader2, Car, Settings, Baby, Briefcase, Music, TreePine, Dog, Key, Dumbbell, Book, Sofa, Store, Heart, Watch, Gem, Palette, Archive, Activity, LockIcon, LogOut, Upload, Plus, LayoutDashboard, ShoppingBag, Layers, ArrowRight, ChevronDown, Banknote, PhoneCall, Moon, Sun, Globe } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { db, auth } from './lib/firebase';
 import { collection, getDocs, doc, setDoc, deleteDoc, updateDoc } from 'firebase/firestore';
 import { signInWithPopup, GoogleAuthProvider, signInWithEmailAndPassword, signOut, onAuthStateChanged, User } from 'firebase/auth';
 import { removeBackground } from '@imgly/background-removal';
+import { GoogleGenAI, Type } from "@google/genai";
+
+const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
 
 // --- Types ---
 type Category = 'plastique' | 'vetements_homme' | 'vetements_femme' | 'vetements_enfants' | 'jouets' | 'maison' | 'bricolage' | 'hygiene' | 'electronique' | 'papeterie' | 'packs' | 'vehicules' | 'pieces_auto' | 'bebes' | 'bagages' | 'musique' | 'jardin' | 'animaux' | 'locations' | 'sport' | 'livres' | 'meubles' | 'videgrenier' | 'sante' | 'bijoux' | 'antiquites' | 'art' | 'divers' | 'immobilier';
@@ -122,20 +125,29 @@ const CATEGORIES_LIST = [
 // --- Sub-components ---
 
 const ProductCard: React.FC<{ product: Product, onAdd: (p: Product) => void }> = ({ product, onAdd }) => (
-  <div className="bg-theme-secondary rounded-[12px] border border-theme-border shadow-[0_4px_12px_rgba(0,0,0,0.05)] p-[12px] flex flex-col gap-[8px] transition-transform hover:-translate-y-1 relative group">
-    <div className="aspect-square bg-[#f0f2f0] rounded-[8px] flex items-center justify-center overflow-hidden shrink-0 relative">
-      <img src={product.image} alt={product.nameFr} className="w-full h-full object-contain" referrerPolicy="no-referrer" />
+  <div className="bg-theme-secondary rounded-[16px] shadow-sm ring-1 ring-theme-border p-[14px] flex flex-col gap-[12px] transition-all hover:-translate-y-1 hover:shadow-md relative group">
+    <div className="aspect-square bg-theme-bg rounded-[10px] flex items-center justify-center overflow-hidden shrink-0 relative border border-theme-border/50">
+      <img src={product.image} alt={product.nameFr} className="w-full h-full object-contain p-2 mix-blend-multiply" referrerPolicy="no-referrer" />
     </div>
-    <div className="flex flex-col flex-grow">
-      <div className="text-[14px] font-semibold text-theme-text">{product.nameFr}</div>
-      <div className="text-[11px] text-theme-muted">{product.nameAr}</div>
-      <div className="text-[16px] text-theme-primary font-bold mt-2">{product.price} DA</div>
+    <div className="flex flex-col flex-grow px-1">
+      <div className="text-[15px] font-bold text-theme-text leading-tight line-clamp-1 tracking-tight" title={product.nameFr}>{product.nameFr}</div>
+      <div className="text-[12px] text-theme-muted line-clamp-1 mt-0.5" title={product.nameAr}>{product.nameAr}</div>
+      
+      {(product.descriptionFr || product.descriptionAr) && (
+        <div className="text-[13px] text-theme-muted mt-2 line-clamp-2 leading-relaxed opacity-80" title={`${product.descriptionFr} ${product.descriptionAr}`}>
+          {product.descriptionFr}
+          {product.descriptionFr && product.descriptionAr && ' • '}
+          <span dir="rtl">{product.descriptionAr}</span>
+        </div>
+      )}
+
+      <div className="text-[18px] text-theme-text font-extrabold mt-auto pt-3 tracking-tight">{product.price} DA</div>
     </div>
     <button 
       onClick={() => onAdd(product)}
-      className="w-full mt-1 p-[8px] bg-theme-primary text-white border-none rounded-[6px] text-[12px] font-semibold cursor-pointer hover:opacity-90 transition-opacity"
+      className="w-full mt-2 p-[10px] bg-theme-bg text-theme-text ring-1 ring-theme-border rounded-[10px] text-[13px] font-bold cursor-pointer hover:bg-theme-text hover:text-theme-secondary hover:ring-0 transition-all flex-shrink-0"
     >
-      Ajouter au Panier
+      Ajouter
     </button>
   </div>
 );
@@ -165,52 +177,47 @@ const CartDrawer = ({
             onClick={onClose}
           />
           <motion.div 
-            initial={{ x: '100%' }} animate={{ x: 0 }} exit={{ x: '100%' }} transition={{ type: 'tween', duration: 0.2 }}
-            className="fixed top-0 right-0 h-full w-full sm:w-[320px] bg-theme-secondary z-50 shadow-[0_4px_12px_rgba(0,0,0,0.05)] flex flex-col rounded-l-[12px]"
+            initial={{ x: '100%' }} animate={{ x: 0 }} exit={{ x: '100%' }} transition={{ type: 'spring', damping: 25, stiffness: 200 }}
+            className="fixed top-0 right-0 h-full w-full sm:w-[360px] bg-theme-bg z-50 shadow-2xl flex flex-col sm:rounded-l-[24px] border-l border-theme-border"
           >
-            <div className="p-[20px] bg-[#f8f9fa] border-b border-theme-border flex justify-between items-center rounded-tl-[12px]">
-              <span className="text-[14px] font-bold text-theme-text">Mon Panier / سلة التسوق</span>
+            <div className="p-[24px] bg-theme-bg border-b border-theme-border flex justify-between items-center sm:rounded-tl-[24px] shrink-0">
+              <span className="text-[18px] font-bold text-theme-text tracking-tight">Mon Panier</span>
               <span className="text-theme-muted flex items-center gap-2">
-                <span className="text-[13px]">{cart.reduce((sum, item) => sum + item.quantity, 0)} Articles</span>
-                <button onClick={onClose} className="hover:text-theme-primary"><X size={16} /></button>
+                <span className="text-[14px] font-medium bg-theme-border/50 px-2 py-0.5 rounded-full">{cart.reduce((sum, item) => sum + item.quantity, 0)}</span>
+                <button onClick={onClose} className="hover:text-theme-primary bg-white p-1.5 rounded-full shadow-sm ring-1 ring-theme-border"><X size={16} /></button>
               </span>
             </div>
 
-            <div className="flex-grow overflow-y-auto p-[15px] flex flex-col gap-[12px]">
+            <div className="flex-grow overflow-y-auto p-[20px] flex flex-col gap-[16px]">
               {cart.length === 0 ? (
-                <div className="text-center text-theme-muted mt-8 text-[13px]">
-                  <Package size={40} className="mx-auto mb-3 opacity-30" />
-                  Votre panier est vide
+                <div className="text-center text-theme-muted mt-12 flex flex-col items-center">
+                  <div className="w-20 h-20 bg-theme-border/30 rounded-full flex items-center justify-center mb-4">
+                    <Package size={32} className="opacity-50" />
+                  </div>
+                  <p className="font-medium text-[15px]">Votre panier est vide</p>
                 </div>
               ) : (
-                cart.map(item => (
-                  <div key={item.product.id} className="flex gap-[10px] items-center text-[13px]">
-                    <div className="w-[40px] h-[40px] bg-[#f0f2f0] rounded-[6px] overflow-hidden shrink-0">
-                      <img src={item.product.image} className="w-full h-full object-cover" alt="" referrerPolicy="no-referrer" />
+                cart.map((item, idx) => (
+                  <div key={`${item.product.id}-${idx}`} className="flex gap-[16px] bg-white p-[12px] rounded-[16px] border border-theme-border shadow-sm items-center relative group">
+                    <img src={item.product.image} className="w-[60px] h-[60px] object-contain bg-gray-50 rounded-[8px] p-1 border border-theme-border/50" referrerPolicy="no-referrer" />
+                    <div className="flex-grow flex flex-col pt-1">
+                      <span className="font-bold text-[14px] text-theme-text leading-tight line-clamp-1">{item.product.nameFr}</span>
+                      <span className="text-theme-primary font-bold mt-1 text-[13px]">{item.product.price} DA x {item.quantity}</span>
                     </div>
-                    <div className="flex-grow">
-                      <strong className="text-theme-text block">{item.product.nameFr}</strong>
-                      <span className="text-theme-primary font-medium">{item.quantity} x {item.product.price} DA</span>
-                    </div>
-                    <button onClick={() => onRemove(item.product.id)} className="p-1.5 text-theme-muted hover:text-red-500 rounded-[4px] transition-colors">
-                      <Trash2 size={16} />
-                    </button>
+                    <button onClick={() => onRemove(item.product.id)} className="p-2 text-theme-muted hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"><Trash2 size={16} /></button>
                   </div>
                 ))
               )}
             </div>
-
+            
             {cart.length > 0 && (
-              <div className="p-[20px] border-t border-theme-border bg-white rounded-bl-[12px]">
-                <div className="flex justify-between items-center py-[10px] mb-2 font-bold text-theme-text border-t border-theme-border">
-                  <span className="text-[14px]">TOTAL</span>
-                  <span className="text-[16px] text-theme-primary">{total} DA</span>
+              <div className="p-[20px] bg-white border-t border-theme-border sm:rounded-bl-[24px] shrink-0">
+                <div className="flex justify-between items-center mb-[16px]">
+                  <span className="text-[14px] font-bold text-theme-muted uppercase tracking-wider">Total</span>
+                  <span className="text-[24px] font-extrabold text-theme-text tracking-tight">{total} DA</span>
                 </div>
-                <button 
-                  onClick={onCheckout}
-                  className="w-full py-[12px] bg-theme-primary text-white border-none rounded-[6px] font-bold text-[13px] cursor-pointer hover:opacity-90 transition-opacity"
-                >
-                  CONFIRMER COMMANDE
+                <button onClick={onCheckout} className="w-full bg-theme-text text-theme-secondary font-bold py-[16px] rounded-[12px] hover:opacity-90 transition-opacity shadow-lg flex items-center justify-center gap-2 text-[15px]">
+                  Commander <ArrowRight size={18} />
                 </button>
               </div>
             )}
@@ -221,290 +228,652 @@ const CartDrawer = ({
   );
 };
 
-// --- App Main Component ---
 export default function App() {
   const [view, setView] = useState<'home' | 'products' | 'checkout' | 'success' | 'admin'>('home');
-  const [category, setCategory] = useState<Category | 'all'>('all');
+  const [category, setCategory] = useState<Category>('diver' as Category);
+  const [cart, setCart] = useState<CartItem[]>([]);
+  const [isCartOpen, setIsCartOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [lang, setLang] = useState<'fr' | 'ar'>('fr');
+  const [isDarkMode, setIsDarkMode] = useState(false);
 
-  const processImage = async (file: File): Promise<string> => {
-    return new Promise(async (resolve, reject) => {
-      try {
-        console.log("Removing background...");
-        // Use bg removal to get transparent blob
-        const blob = await removeBackground(file);
-        
-        const reader = new FileReader();
-        reader.readAsDataURL(blob);
-        reader.onload = (e) => {
-          const img = new Image();
-          img.src = e.target?.result as string;
-          img.onload = () => {
-            const canvas = document.createElement('canvas');
-            const max_size = 800;
-            const size = Math.max(img.width, img.height);
-            const targetSize = size > max_size ? max_size : size;
+  React.useEffect(() => {
+    if (isDarkMode) {
+      document.documentElement.classList.add('dark');
+    } else {
+      document.documentElement.classList.remove('dark');
+    }
+  }, [isDarkMode]);
 
-            canvas.width = targetSize;
-            canvas.height = targetSize;
-            const ctx = canvas.getContext('2d');
-            
-            // Draw white background and center image
-            if (ctx) {
-              ctx.fillStyle = '#FFFFFF';
-              ctx.fillRect(0, 0, targetSize, targetSize);
-              
-              const scale = targetSize / size;
-              const w = img.width * scale;
-              const h = img.height * scale;
-              const x = (targetSize - w) / 2;
-              const y = (targetSize - h) / 2;
-              
-              ctx.drawImage(img, x, y, w, h);
-            }
-            
-            resolve(canvas.toDataURL('image/jpeg', 0.8));
-          };
-          img.onerror = error => reject(error);
-        };
-        reader.onerror = error => reject(error);
-      } catch (error) {
-        console.error("Background removal failed, falling back to resize only", error);
-        // Fallback if background removal fails
-        const reader = new FileReader();
-        reader.readAsDataURL(file);
-        reader.onload = (e) => {
-          const img = new Image();
-          img.src = e.target?.result as string;
-          img.onload = () => {
-            const canvas = document.createElement('canvas');
-            const max_size = 800;
-            const size = Math.max(img.width, img.height);
-            const targetSize = size > max_size ? max_size : size;
-
-            canvas.width = targetSize;
-            canvas.height = targetSize;
-            const ctx = canvas.getContext('2d');
-            
-            // Draw white background and center image
-            if (ctx) {
-              ctx.fillStyle = '#FFFFFF';
-              ctx.fillRect(0, 0, targetSize, targetSize);
-              
-              const scale = targetSize / size;
-              const w = img.width * scale;
-              const h = img.height * scale;
-              const x = (targetSize - w) / 2;
-              const y = (targetSize - h) / 2;
-              
-              ctx.drawImage(img, x, y, w, h);
-            }
-            resolve(canvas.toDataURL('image/jpeg', 0.8));
-          };
-        };
-        reader.onerror = err => reject(err);
-      }
-    });
+  const t = {
+    home: { fr: "Accueil", ar: "الرئيسية" },
+    products: { fr: "Produits", ar: "المنتجات" },
+    categories: { fr: "Catégories", ar: "التصنيفات" },
+    cart: { fr: "Mon Panier", ar: "سلة المشتريات" },
+    checkout: { fr: "Commander", ar: "إتمام الطلب" },
+    search: { fr: "Recherche...", ar: "بحث..." },
   };
 
-  const syncInitialProducts = async () => {
+  const [products, setProducts] = useState<Product[]>(INITIAL_PRODUCTS);
+
+  // Checkout states
+  const [checkoutForm, setCheckoutForm] = useState({ name: '', phone: '', city: 'cherchell', address: '' });
+  
+  // Admin states
+  const [user, setUser] = useState<User | null>(null);
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [isNewProductModalOpen, setIsNewProductModalOpen] = useState(false);
+  const [newProduct, setNewProduct] = useState<Partial<Product>>({ category: 'divers' });
+  const [isProcessingImage, setIsProcessingImage] = useState(false);
+  const [isSavingProduct, setIsSavingProduct] = useState(false);
+  const [isGeneratingMetadata, setIsGeneratingMetadata] = useState(false);
+  const [adminTab, setAdminTab] = useState<'dashboard' | 'commandes' | 'produits' | 'collections'>('dashboard');
+
+  const navigateTo = (newView: typeof view) => { window.scrollTo({ top: 0, behavior: 'smooth' }); setView(newView); };
+
+  const addToCart = (product: Product) => {
+    setCart(prev => {
+      const existing = prev.find(item => item.product.id === product.id);
+      if (existing) return prev.map(item => item.product.id === product.id ? { ...item, quantity: item.quantity + 1 } : item);
+      return [...prev, { product, quantity: 1 }];
+    });
+    setIsCartOpen(true);
+  };
+  const removeFromCart = (id: string) => setCart(prev => prev.filter(item => item.product.id !== id));
+
+  React.useEffect(() => {
+    const unsub = onAuthStateChanged(auth, u => setUser(u));
+    return () => unsub();
+  }, []);
+
+  React.useEffect(() => {
+    const fetchProducts = async () => {
+      try {
+        const snap = await getDocs(collection(db, 'products'));
+        const dynamicProducts = snap.docs.map(doc => ({ id: doc.id, ...doc.data() } as Product));
+        const allProducts = [...dynamicProducts, ...INITIAL_PRODUCTS];
+        const uniqueProducts = Array.from(new Map(allProducts.map(item => [item.id, item])).values());
+        setProducts(uniqueProducts);
+      } catch (err) {
+        setProducts(INITIAL_PRODUCTS);
+      }
+    };
+    fetchProducts();
+  }, []);
+
+  const processImage = async (file: File): Promise<string> => {
+    const imgObjUrl = URL.createObjectURL(file);
     try {
-      setLoading(true);
-      const batch = INITIAL_PRODUCTS.map(async (p) => {
-        await setDoc(doc(db, 'products', p.id), {
-          ...p,
-          createdAt: Date.now()
-        });
+      const blob = await removeBackground(imgObjUrl);
+      return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onloadend = () => resolve(reader.result as string);
+        reader.onerror = reject;
+        reader.readAsDataURL(blob);
       });
-      await Promise.all(batch);
-      setProducts(INITIAL_PRODUCTS);
-      alert("Base de données initialisée !");
     } catch (e) {
-      console.error(e);
-      alert("Erreur lors de l'initialisation.");
-    } finally {
-      setLoading(false);
+      console.error("Background removal failed", e);
+      return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onloadend = () => resolve(reader.result as string);
+        reader.onerror = reject;
+        reader.readAsDataURL(file);
+      });
     }
   };
 
-  const handleImageUpload = async (file: File, product: Product) => {
+  const handleImageUpload = async (file: File, p: Product) => {
     try {
-      if (file.size > 5 * 1024 * 1024) {
-        alert("L'image est trop grande (max 5MB)");
-        return;
-      }
       setIsProcessingImage(true);
-      const base64Image = await processImage(file);
-      await updateDoc(doc(db, 'products', product.id), {
-        image: base64Image
-      });
-      setProducts(prev => prev.map(p => p.id === product.id ? { ...p, image: base64Image } : p));
-      alert("Image mise à jour !");
-    } catch (e) {
-      console.error("Erreur de l'upload:", e);
-      alert("Erreur lors du téléchargement de l'image.");
+      const imgData = await processImage(file);
+      await updateDoc(doc(db, 'products', p.id), { image: imgData });
+      setProducts(prev => prev.map(prod => prod.id === p.id ? { ...prod, image: imgData } : prod));
+    } catch(e) {
+      alert("Erreur");
     } finally {
       setIsProcessingImage(false);
     }
   };
 
+  const generateMetadataForProduct = async (name: string) => {
+    try {
+      setIsGeneratingMetadata(true);
+      const result = await ai.models.generateContent({
+        model: "gemini-2.5-flash",
+        contents: `You are an assistant for a store in Algeria. Generate metadata for this product: "${name}".
+        Provide JSON with: "nameAr", "descriptionFr" (short marketing phrase), "descriptionAr", "category" (one of: ${CATEGORIES_LIST.map(c=>c.id).join(', ')}). No markdown blocks.`
+      });
+      const data = JSON.parse(result.text || "{}");
+      setNewProduct(prev => ({ ...prev, ...data }));
+    } catch (error) {
+      console.error(error);
+      alert("Erreur lors de la génération avec l'IA");
+    } finally {
+      setIsGeneratingMetadata(false);
+    }
+  };
+
   const handleNewProductSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if(!newProduct.nameFr || !newProduct.price || !newProduct.category) return;
     try {
       setIsSavingProduct(true);
-      const productId = newProduct.id || `p_${Date.now()}`;
-      
-      const productToSave = {
-        ...newProduct,
-        id: productId,
-        image: newProduct.image || `https://placehold.co/400x300/e2e8f0/334155?text=${encodeURIComponent(newProduct.nameFr || 'Produit')}`,
-        createdAt: Date.now()
-      };
-
-      await setDoc(doc(db, 'products', productId), productToSave);
-      
-      setProducts(prev => [...prev, productToSave as Product]);
+      const id = Date.now().toString();
+      const productData = { 
+        ...newProduct, 
+        id, 
+        image: newProduct.image || `https://placehold.co/400x300/e2e8f0/334155?text=${newProduct.nameFr}` 
+      } as Product;
+      await setDoc(doc(db, 'products', id), productData);
+      setProducts(prev => [productData, ...prev]);
       setIsNewProductModalOpen(false);
-      setNewProduct({ id: '', nameFr: '', nameAr: '', category: 'divers', price: 0, descriptionFr: '', descriptionAr: '', image: '' });
-      alert("Produit ajouté avec succès !");
-    } catch (error) {
-      console.error("Erreur ajout produit:", error);
-      alert("Erreur lors de l'ajout du produit.");
+      setNewProduct({ category: 'divers' });
+    } catch(e) {
+      alert('Erreur: ' + (e as Error).message);
     } finally {
       setIsSavingProduct(false);
     }
   };
-  const [cart, setCart] = useState<CartItem[]>([]);
-  const [isCartOpen, setIsCartOpen] = useState(false);
-  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
-  // Data state
-  const [products, setProducts] = useState<Product[]>([]);
-  const [loading, setLoading] = useState(true);
-  
-  // Auth state
-  const [user, setUser] = useState<User | null>(null);
-  const [loginEmail, setLoginEmail] = useState('');
-  const [loginPassword, setLoginPassword] = useState('');
-
-  const [isNewProductModalOpen, setIsNewProductModalOpen] = useState(false);
-  const [newProduct, setNewProduct] = useState<Partial<Product>>({
-    id: '', nameFr: '', nameAr: '', category: 'divers', price: 0, descriptionFr: '', descriptionAr: '', image: ''
-  });
-  const [isSavingProduct, setIsSavingProduct] = useState(false);
-  const [isProcessingImage, setIsProcessingImage] = useState(false);
-
-  React.useEffect(() => {
-    const fetchProducts = async () => {
-      try {
-        const querySnapshot = await getDocs(collection(db, 'products'));
-        const productsList: Product[] = [];
-        querySnapshot.forEach((doc) => {
-          productsList.push(doc.data() as Product);
-        });
-        
-        // Use INITIAL_PRODUCTS if empty initially, otherwise from DB
-        setProducts(productsList.length > 0 ? productsList : INITIAL_PRODUCTS);
-      } catch (error) {
-        console.error("Error fetching products", error);
-        setProducts(INITIAL_PRODUCTS);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchProducts();
-    
-    // Auth listener
-    const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
-      setUser(currentUser);
-    });
-
-    return () => unsubscribe();
-  }, []);
-
-  const addToCart = (product: Product) => {
-    setCart(prev => {
-      const existing = prev.find(item => item.product.id === product.id);
-      if (existing) {
-        return prev.map(item => item.product.id === product.id ? { ...item, quantity: item.quantity + 1 } : item);
-      }
-      return [...prev, { product, quantity: 1 }];
-    });
-    setIsCartOpen(true);
-  };
-
-  const removeFromCart = (id: string) => setCart(prev => prev.filter(item => item.product.id !== id));
-  
-  const cartItemCount = cart.reduce((sum, item) => sum + item.quantity, 0);
-  const cartTotal = cart.reduce((sum, item) => sum + (item.product.price * item.quantity), 0);
-
-  const navigateTo = (newView: 'home' | 'products' | 'checkout' | 'success') => {
-    setView(newView);
-    setIsMobileMenuOpen(false);
-    window.scrollTo(0, 0);
-  };
-
-  const handleCheckoutSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    setCart([]);
-    navigateTo('success');
-  };
-
-  // Use the products state for filtering
-  const filteredProducts = category === 'all' ? products : products.filter(p => p.category === category);
+  const totalCart = cart.reduce((sum, item) => sum + (item.product.price * item.quantity), 0);
+  const deliveryFee = 200;
 
   return (
-    <div className="flex flex-col min-h-screen bg-theme-bg text-theme-text font-sans">
-      
-      {/* HEADER */}
-      <header className="h-[70px] bg-theme-secondary border-b border-theme-border flex items-center justify-between px-[20px] md:px-[30px] shrink-0 sticky top-0 z-40">
-        <div className="flex items-center gap-[10px] font-extrabold text-[18px] md:text-[20px] text-theme-primary cursor-pointer" onClick={() => navigateTo('home')}>
-          <div className="w-[40px] h-[40px] rounded-[6px] flex items-center justify-center overflow-hidden shrink-0 bg-theme-bg">
-            <img src="/logo.png.png" alt="Logo" className="w-full h-full object-contain" onError={(e) => { e.currentTarget.style.display = 'none'; e.currentTarget.nextElementSibling?.classList.remove('hidden'); }} />
-            <div className="hidden w-full h-full bg-theme-primary flex items-center justify-center text-white text-[14px]">
-              C
+    <div className={`min-h-screen bg-theme-bg font-sans flex flex-col text-theme-text ${isDarkMode ? 'dark' : ''}`} dir={lang === 'ar' ? 'rtl' : 'ltr'}>
+      <header className="sticky top-0 z-40 bg-theme-bg/80 backdrop-blur-md border-b border-theme-border h-[80px] shrink-0">
+        <div className="max-w-[1200px] mx-auto w-full h-full px-[20px] md:px-[30px] flex items-center justify-between">
+          
+          <div className="flex items-center gap-[20px] md:gap-[30px] h-full">
+            <button className="md:hidden p-2 -ml-2 text-theme-text" onClick={() => setIsMobileMenuOpen(true)}>
+              <Menu size={24} />
+            </button>
+            <div className="flex items-center gap-[12px] cursor-pointer group" onClick={() => navigateTo('home')}>
+              <div className="w-[45px] h-[45px] bg-theme-primary rounded-[12px] flex items-center justify-center text-white shadow-sm transition-transform group-hover:scale-105">
+                <Store size={24} />
+              </div>
+              <div className="flex flex-col">
+                <span className="font-serif text-[20px] font-bold tracking-tight leading-none">Cherchell</span>
+                <span className="text-[12px] text-theme-muted font-bold tracking-[0.2em] uppercase mt-1">Shopping</span>
+              </div>
             </div>
+            <nav className="hidden md:flex items-center gap-[24px] ml-[20px]">
+              <button onClick={() => navigateTo('home')} className={`text-[14px] font-bold transition-colors ${view === 'home' ? 'text-theme-primary' : 'text-theme-muted hover:text-theme-text'}`}>{t.home[lang]}</button>
+              <button onClick={() => navigateTo('products')} className={`text-[14px] font-bold transition-colors ${view === 'products' ? 'text-theme-primary' : 'text-theme-muted hover:text-theme-text'}`}>{t.products[lang]}</button>
+              <div className="relative group">
+                <button 
+                  className={`text-[14px] font-bold transition-colors text-theme-muted hover:text-theme-text flex items-center gap-1`}
+                >
+                  {t.categories[lang]} <ChevronDown size={14} />
+                </button>
+                <div className="absolute top-full left-0 mt-[10px] bg-white border border-theme-border rounded-[12px] shadow-lg py-[8px] w-[220px] opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-50">
+                  {CATEGORIES_LIST.map(c => (
+                     <button key={c.id} onClick={() => { setCategory(c.id as Category); navigateTo('products'); }} className="w-full text-left px-[16px] py-[8px] text-[13px] font-bold text-theme-text hover:bg-theme-bg flex items-center justify-between">
+                       <span>{c.fr}</span>
+                       <span className="text-[11px] text-theme-muted">{c.ar}</span>
+                     </button>
+                  ))}
+                </div>
+              </div>
+            </nav>
           </div>
-          <span className="flex items-center gap-[6px]">Cherchell Shopping <span className="font-light opacity-70 text-[14px] mt-0.5">| 100 DA</span></span>
-        </div>
 
-        <nav className="hidden md:block">
-          <ul className="flex gap-[30px] list-none m-0 p-0 text-[14px]">
-            <li><button onClick={() => navigateTo('home')} className={`font-medium transition-colors ${view === 'home' ? 'text-theme-primary' : 'text-theme-text hover:text-theme-primary'}`}>Accueil</button></li>
-            <li><button onClick={() => navigateTo('products')} className={`font-medium transition-colors ${view === 'products' ? 'text-theme-primary' : 'text-theme-text hover:text-theme-primary'}`}>Produits</button></li>
-            <li><button onClick={() => document.getElementById('contact')?.scrollIntoView()} className="font-medium text-theme-text hover:text-theme-primary transition-colors">Contact</button></li>
-          </ul>
-        </nav>
-
-        <div className="flex items-center gap-[15px]">
-          <button 
-            onClick={() => setIsCartOpen(true)}
-            className="bg-theme-primary text-white py-[8px] px-[16px] rounded-[20px] flex items-center gap-[8px] text-[14px] cursor-pointer hover:opacity-90"
-          >
-            <ShoppingCart size={16} />
-            <span className="hidden sm:inline">Panier </span>
-            <span>({cartItemCount})</span>
-          </button>
-          <button className="md:hidden text-theme-text" onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}>
-            {isMobileMenuOpen ? <X size={24} /> : <Menu size={24} />}
-          </button>
+          <div className="flex items-center gap-[16px]">
+            <button onClick={() => setLang(lang === 'fr' ? 'ar' : 'fr')} className="p-[10px] bg-white border border-theme-border rounded-full hover:bg-theme-bg transition-colors shadow-sm flex items-center gap-1 font-bold text-[12px]">
+              <Globe size={18} className="text-theme-text" /> 
+              <span className="hidden md:inline">{lang === 'fr' ? 'AR' : 'FR'}</span>
+            </button>
+            <button onClick={() => setIsDarkMode(!isDarkMode)} className="p-[10px] bg-white border border-theme-border rounded-full hover:bg-theme-bg transition-colors shadow-sm">
+              {isDarkMode ? <Sun size={20} className="text-theme-text" /> : <Moon size={20} className="text-theme-text" />}
+            </button>
+            <button onClick={() => setIsCartOpen(true)} className="relative p-[10px] bg-white border border-theme-border rounded-full hover:bg-theme-bg transition-colors shadow-sm">
+              <ShoppingCart size={20} className="text-theme-text" />
+              {cart.length > 0 && <span className="absolute -top-1 -right-1 bg-theme-primary text-white text-[11px] font-bold w-[20px] h-[20px] rounded-full flex items-center justify-center shadow-sm">{cart.reduce((s,i)=>s+i.quantity,0)}</span>}
+            </button>
+          </div>
         </div>
       </header>
 
-      <AnimatePresence>
-        {isMobileMenuOpen && (
-          <motion.div 
-            initial={{ height: 0, opacity: 0 }}
-            animate={{ height: 'auto', opacity: 1 }}
-            exit={{ height: 0, opacity: 0 }}
-            className="fixed top-[70px] w-full bg-theme-secondary text-theme-text z-30 md:hidden flex flex-col shadow-[0_4px_12px_rgba(0,0,0,0.05)] overflow-hidden border-b border-theme-border"
-          >
-            <button onClick={() => navigateTo('home')} className="p-[15px] border-b border-theme-border text-left font-medium text-[14px]">Accueil / الرئيسية</button>
-            <button onClick={() => navigateTo('products')} className="p-[15px] border-b border-theme-border text-left font-medium text-[14px]">Produits / المنتجات</button>
-            <button onClick={() => {setIsMobileMenuOpen(false); document.getElementById('contact')?.scrollIntoView();}} className="p-[15px] text-left font-medium text-[14px]">Contact / اتصال</button>
-          </motion.div>
-        )}
-      </AnimatePresence>
+      <main className="flex-grow w-full max-w-[1200px] mx-auto p-[20px] md:p-[30px] flex flex-col gap-[30px] items-start overflow-hidden">
+        <div className="flex-grow w-full flex flex-col gap-[30px]">
+          
+          {/* HOME COMPONENT */}
+          {view === 'home' && (
+            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex flex-col gap-[30px] md:gap-[40px]">
+              
+              {/* HERO BANNER */}
+              <div className="relative bg-theme-text rounded-[24px] overflow-hidden shadow-lg border border-theme-border flex items-center min-h-[300px]">
+                <div className="absolute inset-0 bg-black/40 z-10 block md:hidden"></div>
+                <div className="relative z-20 flex-grow p-[30px] md:p-[60px] flex flex-col justify-center w-full md:w-3/5 text-center md:text-left">
+                  <h1 className="text-[32px] md:text-[48px] font-serif font-black text-white leading-[1.1] tracking-tight drop-shadow-md">
+                    Vos achats du quotidien,<br/>livrés chez vous à
+                    <span className="text-[#f1c40f] block mt-2">Cherchell & Sidi Ghiles</span>
+                  </h1>
+                  <p className="mt-[20px] text-gray-200 text-[16px] md:text-[18px] max-w-xl mx-auto md:mx-0 font-medium">Boutique en ligne avec livraison à domicile pour vos achats réguliers.</p>
+                  <button onClick={() => navigateTo('products')} className="mt-[30px] self-center md:self-start bg-theme-primary hover:bg-[#c0392b] text-white px-[30px] py-[15px] rounded-[12px] font-extrabold text-[16px] shadow-sm transition-all hover:shadow-md flex items-center gap-2 w-max">
+                    Découvrir nos produits <ChevronRight size={18} />
+                  </button>
+                </div>
+              </div>
+
+              
+              
+              <div className="flex justify-between items-end mb-[10px]">
+                <div>
+                  <h2 className="text-[24px] font-serif font-bold text-theme-text">Certains de nos Produits</h2>
+                  <p className="text-theme-muted text-[14px] mt-1">Découvrez notre collection</p>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-[15px]">
+                {products.slice(0, 12).map(p => <ProductCard key={`home-${p.id}`} product={p} onAdd={addToCart} />)}
+              </div>
+              
+              <div className="flex justify-center mt-[10px]">
+                <button 
+                  onClick={() => navigateTo('products')}
+                  className="bg-white border-2 border-theme-border text-theme-text font-bold py-[12px] px-[32px] rounded-[16px] hover:bg-theme-bg transition-colors shadow-sm text-[16px] flex items-center gap-2"
+                >
+                  Voir tous les produits <ArrowRight size={18} />
+                </button>
+              </div>
+
+            {/* DESCRIPTION SERVICE (3 columns) */}
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-[20px]">
+                <div className="bg-white p-[24px] rounded-[20px] border border-theme-border shadow-sm flex flex-col items-center text-center">
+                   <div className="w-[60px] h-[60px] bg-theme-bg rounded-full flex items-center justify-center text-theme-primary mb-[16px]">
+                     <Package size={28} />
+                   </div>
+                   <h3 className="font-bold text-[18px] text-theme-text mb-[8px]">Large Choix de Produits</h3>
+                   <p className="text-theme-muted text-[14px]">Trouvez facilement tous vos articles de maison, cuisine, cosmétiques, plastiques, et quincaillerie en un seul endroit.</p>
+                </div>
+                <div className="bg-white p-[24px] rounded-[20px] border border-theme-border shadow-sm flex flex-col items-center text-center">
+                   <div className="w-[60px] h-[60px] bg-theme-bg rounded-full flex items-center justify-center text-theme-primary mb-[16px]">
+                     <Truck size={28} />
+                   </div>
+                   <h3 className="font-bold text-[18px] text-theme-text mb-[8px]">Livraison Rapide</h3>
+                   <p className="text-theme-muted text-[14px]">On vous livre vos achats directement à domicile dans les communes de Cherchell et Sidi Ghiles.</p>
+                </div>
+                <div className="bg-white p-[24px] rounded-[20px] border border-theme-border shadow-sm flex flex-col items-center text-center">
+                   <div className="w-[60px] h-[60px] bg-theme-bg rounded-full flex items-center justify-center text-theme-primary mb-[16px]">
+                     <Banknote size={28} />
+                   </div>
+                   <h3 className="font-bold text-[18px] text-theme-text mb-[8px]">Paiement à la Livraison</h3>
+                   <p className="text-theme-muted text-[14px]">Payez vos achats en espèces lorsque notre livreur se présente devant votre porte, en toute sécurité.</p>
+                </div>
+              </div>
+
+              {/* COMMENT CA SE PASSE LE SERVICE */}
+              <div className="bg-theme-bg p-[40px] rounded-[24px] flex flex-col gap-[30px] border border-theme-border text-center relative overflow-hidden">
+                 <h2 className="text-[24px] font-serif font-bold text-theme-text z-10 relative mt-4">Comment ça marche ?</h2>
+                 <div className="grid grid-cols-1 md:grid-cols-3 gap-[30px] z-10 relative my-[20px]">
+                    <div className="flex flex-col items-center gap-[12px]">
+                       <div className="text-[32px] font-black text-theme-primary/20 leading-none">01</div>
+                       <ShoppingCart size={32} className="text-theme-text mb-2" />
+                       <h4 className="font-bold text-[16px]">Commandez en ligne</h4>
+                       <p className="text-[14px] text-theme-muted">Ajoutez vos articles au panier et passez commande facilement.</p>
+                    </div>
+                    <div className="hidden md:block absolute top-[60%] left-[25%] w-[16%] h-[2px] border-t-2 border-dashed border-theme-text/20 -translate-y-1/2"></div>
+                    <div className="flex flex-col items-center gap-[12px]">
+                       <div className="text-[32px] font-black text-theme-primary/20 leading-none">02</div>
+                       <PhoneCall size={32} className="text-theme-text mb-2" />
+                       <h4 className="font-bold text-[16px]">Confirmation</h4>
+                       <p className="text-[14px] text-theme-muted">Nous vous appelons pour confirmer la commande et l'heure de livraison.</p>
+                    </div>
+                    <div className="hidden md:block absolute top-[60%] right-[25%] w-[16%] h-[2px] border-t-2 border-dashed border-theme-text/20 -translate-y-1/2"></div>
+                    <div className="flex flex-col items-center gap-[12px]">
+                       <div className="text-[32px] font-black text-theme-primary/20 leading-none">03</div>
+                       <Home size={32} className="text-theme-text mb-2" />
+                       <h4 className="font-bold text-[16px]">Réception & Paiement</h4>
+                       <p className="text-[14px] text-theme-muted">Recevez vos produits chez vous et payez le livreur.</p>
+                    </div>
+                 </div>
+              </div>
+            </motion.div>
+          )}
+
+          {/* PRODUCTS COMPONENT */}
+          {view === 'products' && (
+            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex flex-col gap-[30px]">
+              <div className="flex justify-between items-end mb-[10px] pb-[15px] border-b border-theme-border">
+                <div>
+                  <h2 className="text-[28px] font-serif font-bold text-theme-text tracking-tight capitalize">{CATEGORIES_LIST.find(c => c.id === category)?.fr}</h2>
+                  <p className="text-theme-muted text-[14px] mt-1">{CATEGORIES_LIST.find(c => c.id === category)?.ar}</p>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-[15px]">
+                {products.filter(p => p.category === category).map(p => <ProductCard key={p.id} product={p} onAdd={addToCart} />)}
+                {products.filter(p => p.category === category).length === 0 && (
+                  <div className="col-span-full py-[60px] text-center bg-white border border-theme-border rounded-[16px]">
+                    <Package size={48} className="mx-auto text-theme-muted mb-[16px] opacity-20" />
+                    <p className="text-theme-muted font-bold text-[16px]">Aucun produit dans cette catégorie.</p>
+                  </div>
+                )}
+              </div>
+            </motion.div>
+          )}
+
+          {/* CHECKOUT COMPONENT */}
+          {view === 'checkout' && (
+            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="w-full">
+              <div className="flex items-center gap-[10px] text-theme-muted text-[13px] mb-[30px] font-bold">
+                <button onClick={() => navigateTo('products')} className="hover:text-theme-text transition-colors">Boutique</button>
+                <ChevronRight size={14} />
+                <span className="text-theme-text">Paiement & Livraison</span>
+              </div>
+
+              <div className="flex flex-col lg:flex-row gap-[40px]">
+                <form className="flex-grow flex flex-col gap-[30px]" onSubmit={(e) => { e.preventDefault(); navigateTo('success'); }}>
+                  
+                  <div className="bg-white border border-theme-border rounded-[24px] p-[30px] shadow-sm">
+                    <h2 className="text-[20px] font-bold text-theme-text mb-[24px] tracking-tight">Informations de livraison</h2>
+                    <div className="flex flex-col gap-[20px]">
+                      <div>
+                        <label className="block text-[13px] font-bold text-theme-muted mb-[8px] uppercase tracking-wider">Nom et Prénom *</label>
+                        <input required className="w-full border border-theme-border rounded-[12px] p-[16px] bg-theme-bg focus:bg-white focus:border-theme-primary outline-none transition-all text-[15px] shadow-inner" placeholder="Votre nom complet" value={checkoutForm.name} onChange={e => setCheckoutForm({...checkoutForm, name: e.target.value})} />
+                      </div>
+                      <div>
+                        <label className="block text-[13px] font-bold text-theme-muted mb-[8px] uppercase tracking-wider">Téléphone *</label>
+                        <input required type="tel" className="w-full border border-theme-border rounded-[12px] p-[16px] bg-theme-bg focus:bg-white focus:border-theme-primary outline-none transition-all text-[15px] shadow-inner" placeholder="Votre numéro de téléphone" value={checkoutForm.phone} onChange={e => setCheckoutForm({...checkoutForm, phone: e.target.value})} />
+                      </div>
+                      <div>
+                        <label className="block text-[13px] font-bold text-theme-muted mb-[8px] uppercase tracking-wider">Ville / Commune *</label>
+                        <div className="relative">
+                          <select required className="w-full appearance-none border border-theme-border rounded-[12px] p-[16px] pr-[40px] bg-theme-bg focus:bg-white focus:border-theme-primary outline-none transition-all text-[15px] shadow-inner" value={checkoutForm.city} onChange={e => setCheckoutForm({...checkoutForm, city: e.target.value})}>
+                            <option value="cherchell">Cherchell / شرشال</option>
+                            <option value="sidi_ghiles">Sidi Ghiles / سيدي غيلاس</option>
+                            <option value="autres">Autres / أخرى (Livraison non garantie)</option>
+                          </select>
+                          <ChevronRight size={18} className="absolute right-4 top-1/2 -translate-y-1/2 rotate-90 text-theme-muted pointer-events-none" />
+                        </div>
+                      </div>
+                      <div>
+                        <label className="block text-[13px] font-bold text-theme-muted mb-[8px] uppercase tracking-wider">Adresse complète *</label>
+                        <textarea required rows={3} className="w-full border border-theme-border rounded-[12px] p-[16px] bg-theme-bg focus:bg-white focus:border-theme-primary outline-none transition-all text-[15px] shadow-inner resize-none" placeholder="Nom de rue, quartier, point de repère..." value={checkoutForm.address} onChange={e => setCheckoutForm({...checkoutForm, address: e.target.value})} />
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="bg-white border border-theme-border rounded-[24px] p-[30px] shadow-sm">
+                    <h2 className="text-[20px] font-bold text-theme-text mb-[24px] tracking-tight">Paiement</h2>
+                    <div className="bg-green-50 border border-green-200 p-[20px] rounded-[16px] flex items-start gap-[16px]">
+                      <div className="bg-green-100 p-2 rounded-full text-green-600 mt-1"><CheckCircle size={20} /></div>
+                      <div>
+                        <h4 className="font-bold text-green-800 text-[15px] mb-[4px]">Paiement à la livraison</h4>
+                        <p className="text-green-700 text-[14px]">Vous paierez le montant total en espèces au livreur lors de la réception de votre commande.</p>
+                      </div>
+                    </div>
+                  </div>
+
+                  <button type="submit" className="w-full bg-theme-primary text-white font-black py-[20px] rounded-[16px] text-[18px] shadow-lg hover:-translate-y-1 transition-all hover:shadow-xl mt-[10px]">
+                    CONFIRMER LA COMMANDE ({totalCart + deliveryFee} DA)
+                  </button>
+
+                </form>
+
+                <div className="w-full lg:w-[400px] shrink-0 flex flex-col gap-[30px]">
+                  <div className="bg-white border border-theme-border rounded-[24px] p-[30px] shadow-sm sticky top-[100px]">
+                    <h2 className="text-[20px] font-bold text-theme-text mb-[24px] tracking-tight border-b border-theme-border pb-[16px]">Résumé de la commande</h2>
+                    
+                    <div className="flex flex-col gap-[16px] mb-[24px] max-h-[300px] overflow-y-auto pr-2">
+                      {cart.map((item, idx) => (
+                        <div key={idx} className="flex gap-[16px] items-center">
+                          <img src={item.product.image} className="w-[50px] h-[50px] object-contain bg-theme-bg rounded-[8px] p-1 border border-theme-border/50" />
+                          <div className="flex-grow">
+                            <div className="font-bold text-[13px] leading-tight line-clamp-1">{item.product.nameFr}</div>
+                            <div className="text-theme-muted text-[12px] mt-0.5">Qté: {item.quantity}</div>
+                          </div>
+                          <div className="font-bold text-[14px]">{item.product.price * item.quantity} DA</div>
+                        </div>
+                      ))}
+                    </div>
+
+                    <div className="border-t border-theme-border pt-[20px] flex flex-col gap-[12px]">
+                      <div className="flex justify-between items-center text-[14px] text-theme-muted">
+                        <span>Sous-total sous réserve</span>
+                        <span className="font-bold text-theme-text">{totalCart} DA</span>
+                      </div>
+                      <div className="flex justify-between items-center text-[14px] text-theme-muted">
+                        <span>Frais de livraison (Fixe)</span>
+                        <span className="font-bold text-theme-text">{deliveryFee} DA</span>
+                      </div>
+                      <div className="border-t border-dashed border-theme-border mt-[8px] pt-[16px] flex justify-between items-end">
+                        <span className="text-[16px] font-bold text-theme-text">Total</span>
+                        <span className="text-[28px] font-extrabold text-theme-text leading-none">{totalCart + deliveryFee} DA</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </motion.div>
+          )}
+
+          {/* SUCCESS COMPONENT */}
+          {view === 'success' && (
+            <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className="flex flex-col items-center justify-center py-[80px] text-center max-w-lg mx-auto">
+              <div className="w-[100px] h-[100px] bg-green-100 rounded-full flex items-center justify-center text-green-500 mb-[30px] shadow-inner border border-green-200">
+                <CheckCircle size={48} />
+              </div>
+              <h2 className="text-[32px] font-serif font-black text-theme-text mb-[16px] tracking-tight">Commande <span className="text-theme-primary">Confirmée</span> !</h2>
+              <p className="text-theme-muted text-[16px] mb-[40px] leading-relaxed">
+                Votre commande a été enregistrée avec succès. Notre livreur vous contactera très prochainement pour convenir de la livraison.
+              </p>
+              <div className="flex justify-center w-full">
+                <button onClick={() => { setCart([]); navigateTo('home'); }} className="bg-theme-text text-theme-secondary font-bold px-[40px] py-[16px] rounded-[16px] hover:bg-black transition-colors shadow-lg w-full sm:w-auto">
+                  Retour à la boutique
+                </button>
+              </div>
+            </motion.div>
+          )}
+
+          {/* ADMIN COMPONENT */}
+          {view === 'admin' && (
+            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="w-full">
+                {!user ? (
+                  <div className="flex flex-col items-center justify-center py-20 max-w-sm mx-auto w-full">
+                    <div className="bg-white border rounded-[24px] p-[40px] shadow-sm w-full">
+                      <div className="w-[60px] h-[60px] bg-theme-primary/10 text-theme-primary rounded-[16px] flex items-center justify-center mx-auto mb-[24px]">
+                        <LockIcon size={32} />
+                      </div>
+                      <h2 className="text-[24px] font-bold text-center mb-[30px]">Accès Admin</h2>
+                      <p className="text-sm text-theme-muted mb-6 text-center">Vous devez être l'administrateur certifié.</p>
+                      
+                      <div className="flex flex-col gap-4">
+                        <button 
+                          onClick={async () => { try { await signInWithPopup(auth, new GoogleAuthProvider()); } catch(e) { alert('Erreur Google Auth'); } }} 
+                          className="w-full bg-white border border-gray-300 text-gray-700 py-[12px] rounded-[12px] font-bold flex items-center justify-center gap-3 hover:bg-gray-50 transition-colors"
+                        >
+                          <svg className="w-5 h-5" viewBox="0 0 24 24"><path fill="currentColor" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" /><path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" /><path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" /><path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" /><path fill="none" d="M1 1h22v22H1z" /></svg>
+                          Google Login
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="flex flex-col w-full min-h-[600px] bg-theme-bg -m-[20px] md:-m-[30px] p-[20px] md:p-[40px] rounded-[16px] md:rounded-[24px]">
+                    <div className="flex justify-between items-start border-b border-theme-border pb-[24px] mb-[30px]">
+                      <div>
+                        <h2 className="text-[28px] font-serif font-bold text-theme-text tracking-tight mb-[4px]">Espace Administrateur</h2>
+                        <p className="text-[14px] text-theme-muted">Gérez votre boutique en toute simplicité</p>
+                      </div>
+                      <button 
+                        onClick={() => navigateTo('home')} 
+                        className="bg-white border border-theme-border text-theme-text text-[13px] font-medium px-[16px] py-[8px] rounded-full shadow-sm hover:bg-theme-bg transition-colors"
+                      >
+                        Fermer
+                      </button>
+                    </div>
+                    
+                    <div className="flex flex-col md:flex-row gap-[40px]">
+                      {/* Admin Navigation */}
+                      <div className="w-full md:w-[220px] flex flex-col shrink-0">
+                        <div className="flex flex-col gap-[6px] border-b border-theme-border pb-[20px] mb-[20px]">
+                          <button 
+                            onClick={() => setAdminTab('dashboard')} 
+                            className={`flex items-center gap-[12px] px-[16px] py-[10px] rounded-[10px] text-[14px] font-bold transition-all ${adminTab === 'dashboard' ? 'bg-theme-text text-theme-secondary shadow-md' : 'text-theme-muted hover:text-theme-text hover:bg-white border border-transparent hover:border-theme-border'}`}
+                          >
+                            <LayoutDashboard size={18} /> Dashboard
+                          </button>
+                          <button 
+                            onClick={() => setAdminTab('commandes')} 
+                            className={`flex items-center gap-[12px] px-[16px] py-[10px] rounded-[10px] text-[14px] font-bold transition-all ${adminTab === 'commandes' ? 'bg-theme-text text-theme-secondary shadow-md' : 'text-theme-muted hover:text-theme-text hover:bg-white border border-transparent hover:border-theme-border'}`}
+                          >
+                            <ShoppingBag size={18} /> Commandes
+                          </button>
+                        </div>
+                        <div className="flex flex-col gap-[6px]">
+                          <button 
+                            onClick={() => setAdminTab('produits')} 
+                            className={`flex items-center gap-[12px] px-[16px] py-[10px] rounded-[10px] text-[14px] font-bold transition-all ${adminTab === 'produits' ? 'bg-theme-text text-theme-secondary shadow-md' : 'text-theme-muted hover:text-theme-text hover:bg-white border border-transparent hover:border-theme-border'}`}
+                          >
+                            <Package size={18} /> Produits
+                          </button>
+                          <button 
+                            onClick={() => setAdminTab('collections')} 
+                            className={`flex items-center gap-[12px] px-[16px] py-[10px] rounded-[10px] text-[14px] font-bold transition-all ${adminTab === 'collections' ? 'bg-theme-text text-theme-secondary shadow-md' : 'text-theme-muted hover:text-theme-text hover:bg-white border border-transparent hover:border-theme-border'}`}
+                          >
+                            <Layers size={18} /> Collections
+                          </button>
+                        </div>
+
+                        <div className="mt-[40px] md:mt-auto">
+                          <button 
+                            onClick={() => signOut(auth)} 
+                            className="flex items-center gap-[12px] px-[16px] py-[10px] text-[14px] font-bold text-theme-muted hover:text-red-500 hover:bg-red-50 rounded-[10px] transition-colors w-full text-left"
+                          >
+                            <LogOut size={18} /> Déconnexion
+                          </button>
+                        </div>
+                      </div>
+
+                      {/* Admin Content Area */}
+                      <div className="flex-grow w-full">
+                        {adminTab === 'dashboard' && (
+                          <div className="flex flex-col gap-[25px]">
+                            <div className="grid grid-cols-1 sm:grid-cols-3 gap-[25px]">
+                              <div className="bg-white border border-theme-border rounded-[16px] p-[24px] relative overflow-hidden shadow-sm">
+                                <div className="text-[11px] font-bold text-theme-muted mb-[15px] tracking-[1.5px] uppercase">Total commandes</div>
+                                <div className="text-[36px] font-serif font-normal leading-none tracking-tight">0</div>
+                                <ShoppingBag className="absolute right-4 top-1/2 -translate-y-1/2 text-theme-border opacity-50" size={80} strokeWidth={1} />
+                              </div>
+                              <div className="bg-white border border-theme-border rounded-[16px] p-[24px] relative overflow-hidden shadow-sm">
+                                <div className="text-[11px] font-bold text-theme-muted mb-[15px] tracking-[1.5px] uppercase">Chiffre d'affaires</div>
+                                <div className="text-[36px] font-serif font-normal text-[#e67e22] leading-none tracking-tight">0 <span className="text-[20px] font-sans font-bold">DA</span></div>
+                                <span className="absolute right-4 top-1/2 -translate-y-1/2 text-theme-border text-[80px] font-light leading-none opacity-50">$</span>
+                              </div>
+                              <div className="bg-white border border-theme-border rounded-[16px] p-[24px] relative overflow-hidden shadow-sm">
+                                <div className="text-[11px] font-bold text-theme-muted mb-[15px] tracking-[1.5px] uppercase">En attente d'expédition</div>
+                                <div className="text-[36px] font-serif font-normal leading-none tracking-tight">0</div>
+                                <Activity className="absolute right-4 top-1/2 -translate-y-1/2 text-theme-border opacity-50" size={80} strokeWidth={1} />
+                              </div>
+                            </div>
+                            
+                            <div className="bg-white border border-theme-border rounded-[16px] p-[30px] min-h-[400px] shadow-sm flex flex-col">
+                               <div className="flex items-center gap-[8px] text-[14px] font-bold text-theme-text mb-[40px]">
+                                 <Activity size={18} className="text-[#e67e22]" /> Évolution des ventes (DA)
+                               </div>
+                               <div className="flex-grow relative flex flex-col justify-between py-[20px]">
+                                 <div className="border-t border-dashed border-theme-border"></div>
+                                 <div className="border-t border-dashed border-theme-border"></div>
+                                 <div className="border-t border-dashed border-theme-border"></div>
+                               </div>
+                            </div>
+                          </div>
+                        )}
+
+                        {adminTab === 'produits' && (
+                          <div className="flex flex-col gap-[20px]">
+                            <div className="flex flex-wrap gap-[15px] justify-between items-center mb-2">
+                              <h3 className="font-bold text-[20px] font-serif">Produits</h3>
+                              <div className="flex gap-2">
+                                <button onClick={() => setIsNewProductModalOpen(true)} className="bg-theme-text text-theme-secondary font-bold px-[20px] py-[10px] rounded-[10px] flex items-center gap-[8px] text-[13px] hover:bg-opacity-90 transition-opacity shadow-md">
+                                  <Plus size={16} /> Nouveau Produit
+                                </button>
+                              </div>
+                            </div>
+
+                            <div className="border border-theme-border rounded-[16px] bg-white overflow-hidden shadow-sm">
+                              <table className="w-full text-left text-[13px]">
+                                <thead className="bg-[#f8f9fa] border-b border-theme-border">
+                                  <tr>
+                                    <th className="p-[15px] font-bold text-theme-muted">Image</th>
+                                    <th className="p-[15px] font-bold text-theme-muted">Produit (ID)</th>
+                                    <th className="p-[15px] font-bold text-theme-muted">Prix</th>
+                                    <th className="p-[15px] font-bold text-theme-muted text-right">Actions</th>
+                                  </tr>
+                                </thead>
+                                <tbody>
+                                  {products.map(p => (
+                                    <tr key={p.id} className="border-b border-theme-border last:border-0 hover:bg-theme-bg transition-colors">
+                                      <td className="p-[15px]">
+                                        <div className="w-[60px] h-[60px] bg-theme-bg rounded-[8px] overflow-hidden relative group border border-theme-border">
+                                          <img src={p.image} className="w-full h-full object-contain mix-blend-multiply" referrerPolicy="no-referrer" />
+                                          <label className="absolute inset-0 bg-black/60 flex flex-col items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer text-white">
+                                            <input 
+                                              type="file" 
+                                              accept="image/*" 
+                                              className="hidden" 
+                                              onChange={(e) => {
+                                                if(e.target.files && e.target.files[0]) {
+                                                   handleImageUpload(e.target.files[0], p);
+                                                }
+                                              }}
+                                            />
+                                            {isProcessingImage ? <Loader2 size={16} className="animate-spin" /> : <Upload size={16} />}
+                                          </label>
+                                        </div>
+                                      </td>
+                                      <td className="p-[15px]">
+                                        <div className="font-bold text-[14px] text-theme-text mb-[4px]">{p.nameFr}</div>
+                                        <div className="text-[12px] text-theme-muted font-mono">{p.id} - {p.category}</div>
+                                      </td>
+                                      <td className="p-[15px] font-bold text-theme-text">{p.price} DA</td>
+                                      <td className="p-[15px] text-right">
+                                        <button 
+                                          className="text-theme-muted hover:text-red-600 bg-theme-bg hover:bg-red-50 p-[8px] rounded-[8px] transition-colors inline-flex border border-theme-border"
+                                          onClick={async () => {
+                                            if(confirm('Supprimer ce produit ?')) {
+                                              try {
+                                                await deleteDoc(doc(db, 'products', p.id));
+                                                setProducts(prev => prev.filter(prod => prod.id !== p.id));
+                                              } catch(e) {
+                                                alert('Erreur de suppression');
+                                              }
+                                            }
+                                          }}
+                                        >
+                                          <Trash2 size={16} />
+                                        </button>
+                                      </td>
+                                    </tr>
+                                  ))}
+                                </tbody>
+                              </table>
+                              {products.length === 0 && (
+                                <div className="p-[30px] text-center text-theme-muted font-medium">Aucun produit pour le moment.</div>
+                              )}
+                            </div>
+                          </div>
+                        )}
+
+                        {(adminTab === 'commandes' || adminTab === 'collections') && (
+                           <div className="flex flex-col items-center justify-center py-[80px] text-center bg-white border border-theme-border rounded-[16px] shadow-sm">
+                             <Package size={56} className="text-theme-border mb-[20px]" strokeWidth={1} />
+                             <h3 className="text-[20px] font-serif font-bold text-theme-text mb-[8px]">Bientôt disponible</h3>
+                             <p className="text-[14px] text-theme-muted max-w-[300px]">Cette fonctionnalité sera disponible dans une prochaine mise à jour.</p>
+                           </div>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                )}
+            </motion.div>
+          )}
+
+        </div>
+      </main>
 
       <CartDrawer 
         isOpen={isCartOpen}
@@ -513,434 +882,151 @@ export default function App() {
         onRemove={removeFromCart}
         onCheckout={() => {
           setIsCartOpen(false);
-          navigateTo('checkout');
+          setView('checkout');
         }}
       />
 
-      <main className="flex-grow w-full max-w-[1024px] mx-auto p-[20px] flex flex-col md:flex-row gap-[20px] items-start">
-        
-        {/* SIDEBAR FOR LAYOUT MATCH (Categories) */}
-        {(view === 'home' || view === 'products') && (
-          <aside className="w-full md:w-[220px] shrink-0 bg-theme-secondary rounded-[12px] p-[20px] flex flex-col gap-[25px] shadow-[0_4px_12px_rgba(0,0,0,0.05)] border border-theme-border">
-            <div>
-              <h3 className="text-[12px] uppercase tracking-[1px] text-theme-muted mb-[15px] font-bold">Catégories</h3>
-              <ul className="list-none flex md:flex-col gap-2 md:gap-0 overflow-x-auto md:overflow-visible pb-2 md:pb-0">
-                {CATEGORIES_LIST.map(cat => (
-                  <li key={cat.id} className="min-w-[140px] md:min-w-0">
-                    <button 
-                      onClick={() => { setCategory(cat.id as Category); navigateTo('products'); }}
-                      className={`w-full flex items-center gap-[12px] p-[10px] md:px-0 md:py-[10px] cursor-pointer md:border-b md:border-[#f8f9f9] text-[14px] text-left transition-colors ${category === cat.id ? 'text-theme-primary' : 'text-theme-text hover:text-theme-primary'}`}
-                    >
-                      <span className="w-[32px] h-[32px] bg-[#e8f5e9] text-theme-primary rounded-full flex items-center justify-center shrink-0">
-                        <cat.icon size={16} />
-                      </span>
-                      <div className="leading-tight">
-                        <strong className="block">{cat.fr}</strong>
-                        <small className="text-theme-muted text-[11px]">{cat.ar}</small>
-                      </div>
-                    </button>
-                  </li>
-                ))}
-              </ul>
-            </div>
-            <div className="mt-auto hidden md:block">
-              <p className="text-[12px] text-theme-muted leading-[1.4]">Le meilleur de nos articles à 100 DA et des prix imbattables !</p>
-            </div>
-          </aside>
+      <AnimatePresence>
+        {isMobileMenuOpen && (
+          <>
+            <motion.div 
+              initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+              className="fixed inset-0 bg-black/40 z-50 backdrop-blur-sm md:hidden"
+              onClick={() => setIsMobileMenuOpen(false)}
+            />
+            <motion.div 
+              initial={{ x: '-100%' }} animate={{ x: 0 }} exit={{ x: '-100%' }} transition={{ type: 'spring', damping: 25, stiffness: 200 }}
+              className="fixed top-0 left-0 h-full w-[280px] bg-theme-bg z-50 shadow-2xl flex flex-col border-r border-theme-border md:hidden"
+            >
+              <div className="p-[20px] bg-theme-bg border-b border-theme-border flex justify-between items-center shrink-0">
+                <span className="font-serif text-[18px] font-bold text-theme-text tracking-tight">Menu</span>
+                <button onClick={() => setIsMobileMenuOpen(false)} className="hover:text-theme-primary bg-white p-1.5 rounded-full shadow-sm ring-1 ring-theme-border"><X size={16} /></button>
+              </div>
+
+              <div className="flex-grow overflow-y-auto p-[20px] flex flex-col gap-[16px]">
+                <button onClick={() => { setView('home'); setIsMobileMenuOpen(false); }} className={`w-full text-left font-bold text-[16px] py-[10px] border-b border-theme-border/50 ${view === 'home' ? 'text-theme-primary' : 'text-theme-text'}`}>{t.home[lang]}</button>
+                <button onClick={() => { setView('products'); setIsMobileMenuOpen(false); }} className={`w-full text-left font-bold text-[16px] py-[10px] border-b border-theme-border/50 ${view === 'products' ? 'text-theme-primary' : 'text-theme-text'}`}>{t.products[lang]}</button>
+                
+                <div className="mt-[10px]">
+                  <h3 className="text-[12px] font-bold uppercase tracking-wider text-theme-muted mb-[10px]">{t.categories[lang]}</h3>
+                  <ul className="flex flex-col gap-[4px]">
+                    {CATEGORIES_LIST.map(c => (
+                      <li key={`mobile-cat-${c.id}`}>
+                        <button onClick={() => { setCategory(c.id as Category); setView('products'); setIsMobileMenuOpen(false); }} className="w-full text-left flex items-center justify-between py-[8px] text-[14px]">
+                          <span className={`${category === c.id && view === 'products' ? 'text-theme-primary font-bold' : 'text-theme-text font-medium'}`}>{c.fr}</span>
+                          <span className="text-[11px] text-theme-muted">{c.ar}</span>
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              </div>
+            </motion.div>
+          </>
         )}
+      </AnimatePresence>
 
-        <div className="flex-grow w-full flex flex-col gap-[20px] overflow-hidden">
-          
-          {/* HOME COMPONENT */}
-          {view === 'home' && (
-            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex flex-col gap-[20px]">
-              <div className="h-auto md:h-[120px] bg-gradient-to-br from-theme-primary to-[#008746] rounded-[12px] p-[25px] text-white flex flex-col justify-center relative overflow-hidden shadow-[0_4px_12px_rgba(0,0,0,0.05)] shrink-0">
-                <h2 className="text-[20px] md:text-[24px] font-bold mb-[5px] relative z-10">Cherchell Shopping</h2>
-                <p className="text-[14px] opacity-90 relative z-10">Vente en ligne, livraison gratuite Cherchell et ses environs.</p>
-                <div className="absolute right-[20px] -bottom-[20px] text-[80px] opacity-10 font-bold pointer-events-none select-none">KOULCHI</div>
+      <AnimatePresence>
+        {isNewProductModalOpen && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm shadow-2xl">
+            <motion.div 
+              initial={{ scale: 0.95, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.95, opacity: 0 }}
+              className="bg-white rounded-[24px] w-full max-w-[500px] overflow-hidden"
+            >
+              <div className="p-[20px] border-b border-theme-border flex justify-between items-center bg-theme-bg">
+                <h2 className="font-bold text-[18px]">Nouveau Produit</h2>
+                <button onClick={() => setIsNewProductModalOpen(false)} className="p-1 hover:bg-white rounded-full transition-colors border border-transparent hover:border-theme-border shadow-sm">
+                  <X size={20} />
+                </button>
               </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-[15px]">
-                {products.slice(0, 6).map(product => (
-                  <ProductCard key={product.id} product={product} onAdd={addToCart} />
-                ))}
-              </div>
-              
-              <div className="flex justify-center mt-2">
-                 <button 
-                    onClick={() => navigateTo('products')}
-                    className="bg-theme-secondary border border-theme-border text-theme-text font-bold text-[14px] px-[24px] py-[12px] rounded-[6px] shadow-[0_4px_12px_rgba(0,0,0,0.05)] hover:text-theme-primary transition-colors flex items-center gap-2"
-                  >
-                    Voir tous les produits <ChevronRight size={16}/>
-                  </button>
-              </div>
-            </motion.div>
-          )}
-
-          {/* PRODUCTS COMPONENT */}
-          {view === 'products' && (
-            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex flex-col gap-[20px] w-full">
-              <div className="flex flex-wrap gap-[10px]">
-                {[{ id: 'all', fr: 'Tout', ar: 'الكل' }, ...CATEGORIES_LIST].map(cat => (
-                  <button 
-                    key={cat.id}
-                    onClick={() => setCategory(cat.id as Category | 'all')}
-                    className={`px-[16px] py-[8px] rounded-[20px] text-[13px] font-semibold transition-colors flex items-center gap-[6px] border shadow-sm ${
-                      category === cat.id ? 'bg-theme-primary text-white border-theme-primary' : 'bg-theme-secondary text-theme-muted border-theme-border hover:text-theme-primary hover:border-theme-primary'
-                    }`}
-                  >
-                    <span>{cat.fr}</span>
-                  </button>
-                ))}
-              </div>
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-[15px] pb-[20px]">
-                {filteredProducts.map(product => (
-                  <ProductCard key={product.id} product={product} onAdd={addToCart} />
-                ))}
-              </div>
-              {filteredProducts.length === 0 && (
-                <div className="text-center py-20 text-theme-muted bg-theme-secondary rounded-[12px] border border-theme-border">
-                  <Package size={48} className="mx-auto mb-4 opacity-30" />
-                  <p className="text-[14px]">Aucun produit trouvé.</p>
-                </div>
-              )}
-            </motion.div>
-          )}
-
-          {/* CHECKOUT COMPONENT */}
-          {view === 'checkout' && (
-            <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="w-full bg-theme-secondary border border-theme-border rounded-[12px] shadow-[0_4px_12px_rgba(0,0,0,0.05)] flex flex-col overflow-hidden">
-              <div className="p-[20px] bg-[#f8f9fa] border-b border-theme-border font-bold text-[16px] text-theme-text flex items-center justify-between">
-                <span>Finaliser la commande</span>
-                <span className="text-[13px] text-theme-muted font-normal text-right">إكمال الطلب</span>
-              </div>
-
-              {cart.length === 0 ? (
-                <div className="p-[40px] text-center text-theme-muted">
-                  <p className="mb-[15px] text-[14px]">Votre panier est vide.</p>
-                  <button onClick={() => navigateTo('products')} className="text-theme-primary font-bold text-[14px] hover:underline">Retourner aux produits</button>
-                </div>
-              ) : (
-                <div className="p-[20px] md:p-[30px] flex flex-col md:flex-row gap-[30px]">
-                  
-                  <div className="flex-grow">
-                    <form onSubmit={handleCheckoutSubmit} className="flex flex-col gap-[10px]">
-                      <input required type="text" className="w-full p-[10px] border border-theme-border rounded-[6px] text-[13px] outline-none focus:border-theme-primary transition-colors text-theme-text bg-white" placeholder="Nom Complet / الاسم الكامل" />
-                      <input required type="tel" className="w-full p-[10px] border border-theme-border rounded-[6px] text-[13px] outline-none focus:border-theme-primary transition-colors text-theme-text bg-white" placeholder="Téléphone / رقم الهاتف (ex: 05XX XX XX XX)" />
-                      <input required type="text" className="w-full p-[10px] border border-theme-border rounded-[6px] text-[13px] outline-none focus:border-theme-primary transition-colors text-theme-text bg-white" placeholder="Wilaya / الولاية" />
-                      
-                      <div className="mt-[5px] mb-[10px] bg-[#e8f5e9] p-[15px] rounded-[8px] flex items-start gap-[10px] border border-[#c8e6c9]">
-                        <Truck className="text-theme-primary shrink-0 mt-[2px]" size={16} />
-                        <div>
-                          <p className="font-bold text-theme-primary text-[12px]">Paiement à la livraison</p>
-                          <p className="text-[11px] text-[#2e7d32] mt-1">الدفع عند الاستلام. Des frais de livraison peuvent s'appliquer.</p>
-                        </div>
-                      </div>
-
-                      <button type="submit" className="w-full p-[12px] bg-theme-primary text-white font-bold rounded-[6px] text-[13px] shadow-sm hover:opacity-90 transition-opacity mt-2">
-                        CONFIRMER COMMANDE
-                      </button>
-                    </form>
+              <form onSubmit={handleNewProductSubmit} className="p-[24px] flex flex-col gap-4 text-[14px]">
+                <div>
+                  <div className="flex justify-between mb-1">
+                    <label className="block text-[12px] font-bold text-theme-muted uppercase tracking-wider">Nom (Français) *</label>
+                    <button 
+                      type="button" 
+                      onClick={() => generateMetadataForProduct(newProduct.nameFr || '')} 
+                      disabled={isGeneratingMetadata || !newProduct.nameFr}
+                      className="text-[12px] text-theme-primary font-bold flex items-center gap-1 disabled:opacity-50 hover:underline"
+                    >
+                      {isGeneratingMetadata ? <Loader2 size={12} className="animate-spin" /> : <Sparkles size={12} />} IA Auto-complet
+                    </button>
                   </div>
-
-                  <div className="w-full md:w-[280px] shrink-0">
-                    <div className="mb-[20px] border border-theme-border rounded-[8px] bg-[#f8f9fa] shadow-sm flex flex-col overflow-hidden">
-                      <div className="p-[15px] border-b border-theme-border">
-                        <h3 className="font-bold text-theme-text text-[13px]">Résumé / ملخص الطلب</h3>
-                      </div>
-                      <div className="p-[15px] flex flex-col">
-                        {cart.map(item => (
-                          <div key={item.product.id} className="flex justify-between text-[13px] mb-3 text-theme-text last:mb-0">
-                            <span>{item.quantity}x {item.product.nameFr}</span>
-                            <span className="font-medium text-theme-primary">{item.product.price * item.quantity}</span>
-                          </div>
-                        ))}
-                      </div>
-                      <div className="p-[15px] bg-white border-t border-theme-border flex justify-between font-bold text-[14px] text-theme-text">
-                        <span>TOTAL</span>
-                        <span className="text-theme-primary text-[16px]">{cartTotal} DA</span>
-                      </div>
-                    </div>
+                  <input required className="w-full border border-theme-border rounded-[12px] p-[12px] bg-theme-bg focus:bg-white outline-none transition-colors" value={newProduct.nameFr || ''} onChange={e => setNewProduct({...newProduct, nameFr: e.target.value})} onBlur={() => { if(newProduct.nameFr && !newProduct.nameAr && !newProduct.descriptionFr) generateMetadataForProduct(newProduct.nameFr); }} />
+                </div>
+                <div>
+                  <label className="block text-[12px] font-bold text-theme-muted mb-1 uppercase tracking-wider">Nom (Arabe) *</label>
+                  <input required dir="rtl" className="w-full border border-theme-border rounded-[12px] p-[12px] bg-theme-bg focus:bg-white outline-none transition-colors" value={newProduct.nameAr || ''} onChange={e => setNewProduct({...newProduct, nameAr: e.target.value})} />
+                </div>
+                <div className="flex gap-4">
+                  <div className="flex-1">
+                    <label className="block text-[12px] font-bold text-theme-muted mb-1 uppercase tracking-wider">Prix (DA) *</label>
+                    <input required type="number" min="0" className="w-full border border-theme-border rounded-[12px] p-[12px] bg-theme-bg focus:bg-white outline-none transition-colors" value={newProduct.price || ''} onChange={e => setNewProduct({...newProduct, price: Number(e.target.value)})} />
+                  </div>
+                  <div className="flex-1">
+                    <label className="block text-[12px] font-bold text-theme-muted mb-1 uppercase tracking-wider">Catégorie *</label>
+                    <select required className="w-full border border-theme-border rounded-[12px] p-[12px] bg-theme-bg focus:bg-white outline-none transition-colors" value={newProduct.category || 'divers'} onChange={e => setNewProduct({...newProduct, category: e.target.value as Category})}>
+                      {CATEGORIES_LIST.map(c => <option key={c.id} value={c.id}>{c.fr}</option>)}
+                    </select>
                   </div>
                 </div>
-              )}
+                <div>
+                  <label className="block text-[12px] font-bold text-theme-muted mb-1 uppercase tracking-wider">Description (Français) *</label>
+                  <textarea required rows={2} className="w-full border border-theme-border rounded-[12px] p-[12px] bg-theme-bg focus:bg-white outline-none transition-colors resize-none" value={newProduct.descriptionFr || ''} onChange={e => setNewProduct({...newProduct, descriptionFr: e.target.value})} />
+                </div>
+                <div>
+                  <label className="block text-[12px] font-bold text-theme-muted mb-1 uppercase tracking-wider">Description (Arabe) *</label>
+                  <textarea required rows={2} dir="rtl" className="w-full border border-theme-border rounded-[12px] p-[12px] bg-theme-bg focus:bg-white outline-none transition-colors resize-none" value={newProduct.descriptionAr || ''} onChange={e => setNewProduct({...newProduct, descriptionAr: e.target.value})} />
+                </div>
+                <div className="bg-theme-bg border border-theme-border border-dashed p-[16px] rounded-[12px]">
+                  <label className="block text-[12px] font-bold text-theme-text mb-1 flex items-center justify-between">
+                    Image
+                    <span className="text-[10px] bg-[#f1c40f] text-black px-2 py-0.5 rounded-full">Fond effacé automatiquement</span>
+                  </label>
+                  <input type="file" accept="image/*" disabled={isProcessingImage} className="w-full text-[13px] mt-2 mb-1" onChange={async e => {
+                    if (e.target.files && e.target.files[0]) {
+                      try {
+                        setIsProcessingImage(true);
+                        const img = await processImage(e.target.files[0]);
+                        setNewProduct({...newProduct, image: img});
+                      } catch(err) {
+                        alert("Erreur");
+                      } finally {
+                        setIsProcessingImage(false);
+                      }
+                    }
+                  }} />
+                  {isProcessingImage && <p className="text-[12px] text-theme-primary flex items-center gap-1 font-bold mt-2"><Loader2 size={12} className="animate-spin" /> Traitement de l'image en cours...</p>}
+                  {newProduct.image && !isProcessingImage && <p className="text-[12px] text-green-600 flex items-center gap-1 font-bold mt-2"><CheckCircle size={12} /> Prête</p>}
+                </div>
+                <div className="mt-[16px] flex justify-end">
+                  <button disabled={isSavingProduct} type="submit" className="bg-theme-text text-theme-secondary font-bold py-[12px] px-[24px] rounded-[10px] hover:opacity-90 disabled:opacity-50 flex items-center gap-2 shadow-sm">
+                    {isSavingProduct ? <Loader2 size={16} className="animate-spin" /> : <CheckCircle size={16} />}
+                    Enregistrer
+                  </button>
+                </div>
+              </form>
             </motion.div>
-          )}
+          </div>
+        )}
+      </AnimatePresence>
 
-          {/* SUCCESS COMPONENT */}
-          {view === 'success' && (
-            <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className="bg-theme-secondary border border-theme-border rounded-[12px] shadow-[0_4px_12px_rgba(0,0,0,0.05)] p-[40px] text-center flex flex-col items-center justify-center flex-grow">
-              <div className="w-[64px] h-[64px] bg-[#e8f5e9] text-theme-primary rounded-full mb-[20px] flex items-center justify-center">
-                <CheckCircle size={32} />
-              </div>
-              <h2 className="text-[20px] font-bold text-theme-text mb-[5px]">Commande Confirmée !</h2>
-              <h3 className="text-[14px] font-medium text-theme-muted mb-[15px]" dir="rtl">تم تأكيد طلبك!</h3>
-              <p className="text-[14px] text-theme-text mb-[25px]">Nous vous contacterons très bientôt pour la livraison.</p>
-              <button 
-                onClick={() => navigateTo('home')}
-                className="bg-theme-text text-white font-bold py-[10px] px-[24px] rounded-[6px] text-[13px] hover:bg-opacity-90 transition-opacity"
-              >
-                Retour à l'accueil
-              </button>
-            </motion.div>
-          )}
-
-          {/* ADMIN COMPONENT */}
-          {view === 'admin' && (
-            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="w-full bg-theme-secondary border border-theme-border rounded-[12px] shadow-[0_4px_12px_rgba(0,0,0,0.05)] p-4 md:p-[20px] flex flex-col gap-4">
-               {!user ? (
-                 <div className="flex flex-col items-center justify-center py-20 text-center">
-                   <LockIcon size={48} className="mb-4 text-theme-muted opacity-50" />
-                   <h2 className="text-xl font-bold mb-2">Accès Administrateur</h2>
-                   <p className="text-[14px] text-theme-muted mb-6">Connectez-vous pour gérer les produits, ajouter des photos et modifier les articles.</p>
-                   
-                   <form 
-                     className="flex flex-col gap-3 w-full max-w-xs mb-6"
-                     onSubmit={async (e) => {
-                       e.preventDefault();
-                       try {
-                         await signInWithEmailAndPassword(auth, loginEmail, loginPassword);
-                       } catch (e: any) {
-                         console.error("Login erreur:", e);
-                         alert("Erreur de connexion : " + (e.message || 'Erreur inconnue'));
-                       }
-                     }}
-                   >
-                     <input
-                       type="email"
-                       placeholder="Email"
-                       required
-                       value={loginEmail}
-                       onChange={(e) => setLoginEmail(e.target.value)}
-                       className="border rounded-lg p-2 w-full focus:outline-theme-primary"
-                     />
-                     <input
-                       type="password"
-                       placeholder="Mot de passe"
-                       required
-                       value={loginPassword}
-                       onChange={(e) => setLoginPassword(e.target.value)}
-                       className="border rounded-lg p-2 w-full focus:outline-theme-primary"
-                     />
-                     <button 
-                       type="submit"
-                       className="bg-theme-primary text-white font-bold px-6 py-2 rounded-lg hover:opacity-90 mt-2"
-                     >
-                       Se connecter
-                     </button>
-                   </form>
-
-                   <div className="flex items-center gap-2 mb-6 w-full max-w-xs">
-                     <div className="h-px bg-gray-200 flex-1"></div>
-                     <span className="text-gray-400 text-sm font-medium">OU</span>
-                     <div className="h-px bg-gray-200 flex-1"></div>
-                   </div>
-
-                   <button 
-                     onClick={async () => {
-                       try {
-                         const provider = new GoogleAuthProvider();
-                         await signInWithPopup(auth, provider);
-                       } catch (e: any) {
-                         console.error("Login erreur:", e);
-                         alert("Erreur de connexion : " + (e.message || 'Erreur inconnue') + "\n\nSi vous avez déployé l'application (ex: sur Vercel), vous devez ajouter " + window.location.hostname + " à la liste des domaines autorisés dans la console Firebase (Paramètres d'authentification > Domaines autorisés).");
-                       }
-                     }}
-                     className="bg-white border text-gray-700 font-bold px-6 py-2 rounded-lg flex items-center gap-2 hover:bg-gray-50 transition-colors shadow-sm"
-                   >
-                     <svg className="w-5 h-5" viewBox="0 0 24 24"><path fill="currentColor" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" /><path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" /><path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" /><path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" /></svg>
-                     Se connecter avec Google
-                   </button>
-                 </div>
-               ) : (
-                 <div className="flex flex-col gap-6 w-full">
-                   <div className="flex justify-between items-center bg-gray-50 p-4 border rounded-lg">
-                      <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 bg-theme-primary text-white rounded-full flex items-center justify-center font-bold">{user.email?.charAt(0).toUpperCase()}</div>
-                        <div>
-                          <p className="font-bold text-[14px]">{user.displayName || 'Admin'}</p>
-                          <p className="text-[12px] text-gray-500">{user.email}</p>
-                        </div>
-                      </div>
-                      <button 
-                        onClick={() => signOut(auth)} 
-                        className="text-red-500 hover:bg-red-50 p-2 rounded-lg flex items-center gap-2 text-[13px]"
-                      >
-                        <LogOut size={16} /> <span className="hidden sm:inline">Déconnexion</span>
-                      </button>
-                   </div>
-                   
-                   <div className="flex flex-wrap gap-4 justify-between items-center">
-                     <h3 className="font-bold text-[18px]">Gestion des Produits</h3>
-                     <div className="flex gap-2">
-                       <button onClick={syncInitialProducts} className="bg-[#e8f5e9] text-theme-primary font-semibold px-4 py-2 rounded-[8px] flex items-center gap-2 text-[13px] border border-[#c8e6c9] hover:bg-[#c8e6c9] transition-colors">
-                         <Activity size={16} /> Seed Base de Données
-                       </button>
-                       <button onClick={() => setIsNewProductModalOpen(true)} className="bg-theme-primary text-white font-semibold px-4 py-2 rounded-[8px] flex items-center gap-2 text-[13px] hover:opacity-90 transition-opacity">
-                         <Plus size={16} /> Nouveau Produit
-                       </button>
-                     </div>
-                   </div>
-
-                   <div className="border rounded-lg overflow-x-auto">
-                     <table className="w-full text-left text-[13px]">
-                       <thead className="bg-[#f8f9fa] border-b">
-                         <tr>
-                           <th className="p-3 font-semibold">Image</th>
-                           <th className="p-3 font-semibold">Produit (ID)</th>
-                           <th className="p-3 font-semibold">Prix</th>
-                           <th className="p-3 font-semibold text-right">Actions</th>
-                         </tr>
-                       </thead>
-                       <tbody>
-                         {products.map(p => (
-                           <tr key={p.id} className="border-b last:border-0 hover:bg-gray-50 transition-colors">
-                             <td className="p-3">
-                               <div className="w-16 h-16 bg-gray-100 rounded-md overflow-hidden relative group border">
-                                 <img src={p.image} className="w-full h-full object-contain" referrerPolicy="no-referrer" />
-                                 <label className="absolute bottom-0 left-0 right-0 bg-black/70 flex items-center justify-center cursor-pointer py-1 text-white hover:bg-theme-primary transition-colors cursor-pointer" title="Modifier l'image">
-                                   <input 
-                                     type="file" 
-                                     accept="image/*" 
-                                     className="hidden" 
-                                     onChange={(e) => {
-                                       if(e.target.files && e.target.files[0]) {
-                                          handleImageUpload(e.target.files[0], p);
-                                       }
-                                     }}
-                                   />
-                                   <Upload size={14} className="text-white" />
-                                 </label>
-                               </div>
-                             </td>
-                             <td className="p-3 font-medium">
-                               {p.nameFr}
-                               <div className="text-[11px] text-theme-muted font-normal mt-0.5">{p.id} - {p.category}</div>
-                             </td>
-                             <td className="p-3 font-bold text-theme-primary">{p.price} DA</td>
-                             <td className="p-3 text-right">
-                               <button 
-                                 className="text-red-400 hover:text-red-600 p-2 ml-1"
-                                 onClick={async () => {
-                                   if(confirm('Supprimer ce produit ?')) {
-                                     try {
-                                       await deleteDoc(doc(db, 'products', p.id));
-                                       setProducts(prev => prev.filter(prod => prod.id !== p.id));
-                                     } catch(e) {
-                                       alert('Erreur de suppression');
-                                     }
-                                   }
-                                 }}
-                               >
-                                 <Trash2 size={16} />
-                               </button>
-                             </td>
-                           </tr>
-                         ))}
-                       </tbody>
-                     </table>
-                   </div>
-                   
-                   {/* Modal Nouveau Produit */}
-                   <AnimatePresence>
-                     {isNewProductModalOpen && (
-                       <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm overflow-y-auto pt-20">
-                         <motion.div 
-                           initial={{ scale: 0.95, opacity: 0 }}
-                           animate={{ scale: 1, opacity: 1 }}
-                           exit={{ scale: 0.95, opacity: 0 }}
-                           className="bg-white rounded-[16px] w-full max-w-[500px] overflow-hidden shadow-2xl my-auto"
-                         >
-                           <div className="p-[20px] border-b flex justify-between items-center text-black">
-                             <h2 className="font-bold text-[18px]">Ajouter un Produit</h2>
-                             <button onClick={() => setIsNewProductModalOpen(false)} className="p-1 hover:bg-gray-100 rounded-full">
-                               <X size={20} />
-                             </button>
-                           </div>
-                           <form onSubmit={handleNewProductSubmit} className="p-[20px] flex flex-col gap-4 text-theme-text text-[14px]">
-                             <div>
-                               <label className="block text-[12px] font-bold text-gray-500 mb-1">Nom (Français) *</label>
-                               <input required className="w-full border rounded-[8px] p-2 bg-gray-50 focus:bg-white transition-colors" value={newProduct.nameFr || ''} onChange={e => setNewProduct({...newProduct, nameFr: e.target.value})} />
-                             </div>
-                             <div>
-                               <label className="block text-[12px] font-bold text-gray-500 mb-1">Nom (Arabe) *</label>
-                               <input required dir="rtl" className="w-full border rounded-[8px] p-2 bg-gray-50 focus:bg-white transition-colors" value={newProduct.nameAr || ''} onChange={e => setNewProduct({...newProduct, nameAr: e.target.value})} />
-                             </div>
-                             <div className="flex gap-4">
-                               <div className="flex-1">
-                                 <label className="block text-[12px] font-bold text-gray-500 mb-1">Prix (DA) *</label>
-                                 <input required type="number" min="0" className="w-full border rounded-[8px] p-2 bg-gray-50 focus:bg-white transition-colors" value={newProduct.price || ''} onChange={e => setNewProduct({...newProduct, price: Number(e.target.value)})} />
-                               </div>
-                               <div className="flex-1">
-                                 <label className="block text-[12px] font-bold text-gray-500 mb-1">Catégorie *</label>
-                                 <select required className="w-full border rounded-[8px] p-2 bg-gray-50 focus:bg-white transition-colors" value={newProduct.category || 'divers'} onChange={e => setNewProduct({...newProduct, category: e.target.value as Category})}>
-                                   {CATEGORIES_LIST.map(c => <option key={c.id} value={c.id}>{c.fr}</option>)}
-                                 </select>
-                               </div>
-                             </div>
-                             <div>
-                               <label className="block text-[12px] font-bold text-gray-500 mb-1">Description (Français) *</label>
-                               <textarea required rows={2} className="w-full border rounded-[8px] p-2 outline-none bg-gray-50 focus:bg-white transition-colors resize-none" value={newProduct.descriptionFr || ''} onChange={e => setNewProduct({...newProduct, descriptionFr: e.target.value})} />
-                             </div>
-                             <div>
-                               <label className="block text-[12px] font-bold text-gray-500 mb-1">Description (Arabe) *</label>
-                               <textarea required rows={2} dir="rtl" className="w-full border rounded-[8px] p-2 outline-none bg-gray-50 focus:bg-white transition-colors resize-none" value={newProduct.descriptionAr || ''} onChange={e => setNewProduct({...newProduct, descriptionAr: e.target.value})} />
-                             </div>
-                             <div>
-                               <label className="block text-[12px] font-bold text-gray-500 mb-1">Image (Fond effacé automatiquement)</label>
-                               <input type="file" accept="image/*" disabled={isProcessingImage} className="w-full text-[13px] disabled:opacity-50" onChange={async e => {
-                                 if (e.target.files && e.target.files[0]) {
-                                   try {
-                                     setIsProcessingImage(true);
-                                     const img = await processImage(e.target.files[0]);
-                                     setNewProduct({...newProduct, image: img});
-                                   } catch(err) {
-                                     alert("Erreur lors de la préparation de l'image");
-                                   } finally {
-                                     setIsProcessingImage(false);
-                                   }
-                                 }
-                               }} />
-                               {isProcessingImage && <p className="text-[12px] text-theme-primary flex items-center gap-1 mt-1"><Loader2 size={12} className="animate-spin" /> Traitement de l'image (suppression du fond)...</p>}
-                               {newProduct.image && !isProcessingImage && <div className="mt-2 text-[12px] text-green-600 flex items-center gap-1"><CheckCircle size={12} /> Image prête</div>}
-                             </div>
-                             <div className="mt-4 flex justify-end">
-                               <button disabled={isSavingProduct} type="submit" className="bg-theme-primary text-white font-bold py-2 px-6 rounded-[8px] hover:opacity-90 disabled:opacity-50 flex items-center gap-2">
-                                 {isSavingProduct ? <Loader2 size={16} className="animate-spin" /> : <CheckCircle size={16} />}
-                                 Enregistrer
-                               </button>
-                             </div>
-                           </form>
-                         </motion.div>
-                       </div>
-                     )}
-                   </AnimatePresence>
-                 </div>
-               )}
-            </motion.div>
-          )}
-        </div>
-      </main>
-
-      <footer id="contact" className="h-auto md:h-[60px] bg-theme-secondary border-t border-theme-border flex flex-col md:flex-row items-center justify-between px-[20px] md:px-[30px] text-[12px] text-theme-muted shrink-0 py-4 md:py-0 mt-auto">
-        <div className="mb-2 md:mb-0 text-center md:text-left">© {new Date().getFullYear()} Cherchell Shopping 100 DA - Tous droits réservés | كل الحقوق محفوظة</div>
-        <div className="flex gap-[10px] text-theme-primary font-semibold mb-2 md:mb-0">
+      <footer id="contact" className="h-[auto] md:h-[60px] bg-white border-t border-theme-border flex flex-col md:flex-row items-center justify-between px-[20px] md:px-[30px] text-[12px] text-theme-muted shrink-0 py-4 md:py-0 mt-auto">
+        <div className="mb-2 md:mb-0 text-center md:text-left font-medium">© {new Date().getFullYear()} Cherchell Shopping 100 DA</div>
+        <div className="flex gap-[10px] text-theme-primary font-bold mb-2 md:mb-0">
           <span>FR</span>
           <span>|</span>
           <span dir="rtl">العربية</span>
         </div>
-        <div className="flex items-center gap-[10px]">
-          <span>Contact: +213 555 00 00 00 | Suivez-nous: FB / IG</span>
-          <button onClick={() => navigateTo('admin')} className="text-theme-muted hover:text-theme-primary ml-2">
+        <div className="flex items-center gap-[10px] font-medium">
+          <span>Contact: +213 555 00 00 00</span>
+          <button onClick={() => navigateTo('admin')} className="text-theme-border hover:text-theme-primary ml-2 transition-colors">
             <LockIcon size={14} />
           </button>
         </div>
       </footer>
-
-      {/* Image Editor Modal */}
-      <AnimatePresence>
-      </AnimatePresence>
-
     </div>
   );
 }
