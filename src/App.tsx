@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { ShoppingCart, Menu, X, Trash2, Package, Shirt, Gamepad2, CheckCircle, ChevronRight, MapPin, Truck, Phone, Home, Hammer, Sparkles, Tv, PenTool, Gift, Pencil, Loader2, Car, Settings, Baby, Briefcase, Music, TreePine, Dog, Key, Dumbbell, Book, Sofa, Store, Heart, Watch, Gem, Palette, Archive, Activity, LockIcon, LogOut, Upload, Plus, LayoutDashboard, ShoppingBag, Layers, ArrowRight, ChevronDown, Banknote, PhoneCall, Moon, Sun, Globe } from 'lucide-react';
+import { ShoppingCart, Menu, X, Trash2, Package, Shirt, Gamepad2, CheckCircle, ChevronRight, MapPin, Truck, Phone, Home, Hammer, Sparkles, Tv, PenTool, Gift, Pencil, Loader2, Car, Settings, Baby, Briefcase, Music, TreePine, Dog, Key, Dumbbell, Book, Sofa, Store, Heart, Watch, Gem, Search, Palette, Archive, Activity, LockIcon, LogOut, Upload, Plus, LayoutDashboard, ShoppingBag, Layers, ArrowRight, ChevronDown, Banknote, PhoneCall, Moon, Sun, Globe } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { db, auth } from './lib/firebase';
 import { collection, getDocs, doc, setDoc, deleteDoc, updateDoc, onSnapshot } from 'firebase/firestore';
@@ -10,11 +10,9 @@ import { GoogleGenAI, Type } from "@google/genai";
 let aiClient: any = null;
 const getAiClient = () => {
   if (!aiClient) {
-    // @ts-ignore
-    const apiKey = import.meta.env?.VITE_GEMINI_API_KEY || (typeof process !== 'undefined' ? process.env?.GEMINI_API_KEY : null);
+    const apiKey = process.env.GEMINI_API_KEY;
     if (!apiKey) {
       console.warn("API key not found, AI generation will fail");
-      alert("Veuillez configurer une clé API Gemini valide (VITE_GEMINI_API_KEY).");
     }
     aiClient = new GoogleGenAI({ apiKey: apiKey || 'dummy-key' });
   }
@@ -136,20 +134,19 @@ const CATEGORIES_LIST = [
 
 // --- Sub-components ---
 
-const ProductCard: React.FC<{ product: Product, onAdd: (p: Product) => void }> = ({ product, onAdd }) => (
+const ProductCard: React.FC<{ product: Product, onAdd: (p: Product) => void, lang: 'fr' | 'ar' }> = ({ product, onAdd, lang }) => (
   <div className="bg-theme-secondary rounded-[16px] shadow-sm ring-1 ring-theme-border p-[14px] flex flex-col gap-[12px] transition-all hover:-translate-y-1 hover:shadow-md relative group">
     <div className="aspect-square bg-theme-bg rounded-[10px] flex items-center justify-center overflow-hidden shrink-0 relative border border-theme-border/50">
       <img src={product.image} alt={product.nameFr} className="w-full h-full object-contain p-2 mix-blend-multiply" referrerPolicy="no-referrer" />
     </div>
     <div className="flex flex-col flex-grow px-1">
-      <div className="text-[15px] font-bold text-theme-text leading-tight line-clamp-1 tracking-tight" title={product.nameFr}>{product.nameFr}</div>
-      <div className="text-[12px] text-theme-muted line-clamp-1 mt-0.5" title={product.nameAr}>{product.nameAr}</div>
+      <div className="text-[15px] font-bold text-theme-text leading-tight line-clamp-1 tracking-tight" title={lang === 'fr' ? product.nameFr : product.nameAr}>
+        {lang === 'fr' ? product.nameFr : product.nameAr}
+      </div>
       
-      {(product.descriptionFr || product.descriptionAr) && (
-        <div className="text-[13px] text-theme-muted mt-2 line-clamp-2 leading-relaxed opacity-80" title={`${product.descriptionFr} ${product.descriptionAr}`}>
-          {product.descriptionFr}
-          {product.descriptionFr && product.descriptionAr && ' • '}
-          <span dir="rtl">{product.descriptionAr}</span>
+      {((lang === 'fr' && product.descriptionFr) || (lang === 'ar' && product.descriptionAr)) && (
+        <div className="text-[13px] text-theme-muted mt-2 line-clamp-2 leading-relaxed opacity-80" title={lang === 'fr' ? product.descriptionFr : product.descriptionAr}>
+          {lang === 'fr' ? product.descriptionFr : product.descriptionAr}
         </div>
       )}
 
@@ -159,7 +156,7 @@ const ProductCard: React.FC<{ product: Product, onAdd: (p: Product) => void }> =
       onClick={() => onAdd(product)}
       className="w-full mt-2 p-[10px] bg-theme-bg text-theme-text ring-1 ring-theme-border rounded-[10px] text-[13px] font-bold cursor-pointer hover:bg-theme-text hover:text-theme-secondary hover:ring-0 transition-all flex-shrink-0"
     >
-      Ajouter
+      {TRANSLATIONS[lang].addToCart}
     </button>
   </div>
 );
@@ -169,15 +166,18 @@ const CartDrawer = ({
   onClose, 
   cart, 
   onRemove, 
-  onCheckout 
+  onCheckout,
+  lang
 }: { 
   isOpen: boolean, 
   onClose: () => void, 
   cart: CartItem[], 
   onRemove: (id: string) => void,
-  onCheckout: () => void
+  onCheckout: () => void,
+  lang: 'fr' | 'ar'
 }) => {
   const total = cart.reduce((sum, item) => sum + (item.product.price * item.quantity), 0);
+  const tMenu = TRANSLATIONS[lang];
 
   return (
     <AnimatePresence>
@@ -193,13 +193,13 @@ const CartDrawer = ({
         <motion.div 
           key="drawer"
           initial={{ x: '100%' }} animate={{ x: 0 }} exit={{ x: '100%' }} transition={{ type: 'spring', damping: 25, stiffness: 200 }}
-          className="fixed top-0 right-0 h-full w-full sm:w-[360px] bg-theme-bg z-50 shadow-2xl flex flex-col sm:rounded-l-[24px] border-l border-theme-border"
+          className="fixed top-0 end-0 h-full w-full sm:w-[360px] bg-theme-bg z-50 shadow-2xl flex flex-col sm:rounded-s-[24px] border-s border-theme-border"
         >
             <div className="p-[24px] bg-theme-bg border-b border-theme-border flex justify-between items-center sm:rounded-tl-[24px] shrink-0">
-              <span className="text-[18px] font-bold text-theme-text tracking-tight">Mon Panier</span>
+              <span className="text-[18px] font-bold text-theme-text tracking-tight">{tMenu.cart}</span>
               <span className="text-theme-muted flex items-center gap-2">
                 <span className="text-[14px] font-medium bg-theme-border/50 px-2 py-0.5 rounded-full">{cart.reduce((sum, item) => sum + item.quantity, 0)}</span>
-                <button onClick={onClose} className="hover:text-theme-primary bg-white p-1.5 rounded-full shadow-sm ring-1 ring-theme-border"><X size={16} /></button>
+                <button onClick={onClose} className="hover:text-theme-primary bg-theme-secondary p-1.5 rounded-full shadow-sm ring-1 ring-theme-border"><X size={16} /></button>
               </span>
             </div>
 
@@ -209,14 +209,14 @@ const CartDrawer = ({
                   <div className="w-20 h-20 bg-theme-border/30 rounded-full flex items-center justify-center mb-4">
                     <Package size={32} className="opacity-50" />
                   </div>
-                  <p className="font-medium text-[15px]">Votre panier est vide</p>
+                  <p className="font-medium text-[15px]">{tMenu.emptyCart}</p>
                 </div>
               ) : (
                 cart.map((item, idx) => (
-                  <div key={`${item.product.id}-${idx}`} className="flex gap-[16px] bg-white p-[12px] rounded-[16px] border border-theme-border shadow-sm items-center relative group">
-                    <img src={item.product.image} className="w-[60px] h-[60px] object-contain bg-gray-50 rounded-[8px] p-1 border border-theme-border/50" referrerPolicy="no-referrer" />
+                  <div key={`${item.product.id}-${idx}`} className="flex gap-[16px] bg-theme-secondary p-[12px] rounded-[16px] border border-theme-border shadow-sm items-center relative group">
+                    <img src={item.product.image} className="w-[60px] h-[60px] object-contain bg-theme-bg rounded-[8px] p-1 border border-theme-border/50" referrerPolicy="no-referrer" />
                     <div className="flex-grow flex flex-col pt-1">
-                      <span className="font-bold text-[14px] text-theme-text leading-tight line-clamp-1">{item.product.nameFr}</span>
+                      <span className="font-bold text-[14px] text-theme-text leading-tight line-clamp-1">{lang === 'fr' ? item.product.nameFr : item.product.nameAr}</span>
                       <span className="text-theme-primary font-bold mt-1 text-[13px]">{item.product.price} DA x {item.quantity}</span>
                     </div>
                     <button onClick={() => onRemove(item.product.id)} className="p-2 text-theme-muted hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"><Trash2 size={16} /></button>
@@ -226,13 +226,13 @@ const CartDrawer = ({
             </div>
             
             {cart.length > 0 && (
-              <div className="p-[20px] bg-white border-t border-theme-border sm:rounded-bl-[24px] shrink-0">
+              <div className="p-[20px] bg-theme-secondary border-t border-theme-border sm:rounded-bl-[24px] shrink-0">
                 <div className="flex justify-between items-center mb-[16px]">
-                  <span className="text-[14px] font-bold text-theme-muted uppercase tracking-wider">Total</span>
+                  <span className="text-[14px] font-bold text-theme-muted uppercase tracking-wider">{tMenu.total}</span>
                   <span className="text-[24px] font-extrabold text-theme-text tracking-tight">{total} DA</span>
                 </div>
                 <button onClick={onCheckout} className="w-full bg-theme-text text-theme-secondary font-bold py-[16px] rounded-[12px] hover:opacity-90 transition-opacity shadow-lg flex items-center justify-center gap-2 text-[15px]">
-                  Commander <ArrowRight size={18} />
+                  {tMenu.checkoutBtn} <ArrowRight size={18} />
                 </button>
               </div>
             )}
@@ -242,32 +242,153 @@ const CartDrawer = ({
   );
 };
 
+const TRANSLATIONS = {
+  fr: {
+    home: "Accueil",
+    products: "Produits",
+    categories: "Catégories",
+    admin: "Admin",
+    search: "Rechercher un produit...",
+    cart: "Panier",
+    addToCart: "Ajouter",
+    allCategories: "Toutes les catégories",
+    popularCategories: "Catégories Populaires",
+    howItWorks: "Comment ça marche ?",
+    step1Title: "Commandez en ligne",
+    step1Desc: "Ajoutez vos articles au panier et passez commande facilement.",
+    step2Title: "Confirmation",
+    step2Desc: "Nous vous appelons pour confirmer la commande et l'heure de livraison.",
+    step3Title: "Réception & Paiement",
+    step3Desc: "Recevez vos produits chez vous et payez le livreur.",
+    emptyCart: "Votre panier est vide",
+    total: "Total",
+    checkoutBtn: "Commander",
+    deliveryInfo: "Informations de livraison",
+    fullName: "Nom et Prénom *",
+    fullNamePlaceholder: "Votre nom complet",
+    phone: "Téléphone *",
+    phonePlaceholder: "Votre numéro de téléphone",
+    city: "Ville / Commune *",
+    address: "Adresse détaillée *",
+    addressPlaceholder: "Quartier, rue, bâtiment, étage...",
+    payment: "Paiement",
+    paymentCash: "Paiement à la livraison",
+    paymentCashDesc: "Vous paierez le montant total en espèces au livreur lors de la réception de votre commande.",
+    confirmOrder: "CONFIRMER LA COMMANDE",
+    orderSummary: "Résumé de la commande",
+    deliveryFee: "Frais de livraison",
+    freeDelivery: "Gratuit",
+    orderConfirmedTitle: "Commande Confirmée !",
+    orderConfirmedDesc: "Votre commande a été enregistrée avec succès. Notre livreur vous contactera très prochainement pour convenir de la livraison.",
+    backShop: "Retour à la boutique",
+    productDescPlaceholder: "Aucune description",
+    cities: {
+      cherchell: "Cherchell",
+      sidi_ghiles: "Sidi Ghiles",
+      autres: "Autres (Livraison non garantie)"
+    },
+    homeTitles: {
+      someProducts: "Certains de nos Produits",
+      discover: "Découvrez notre collection",
+      viewAll: "Voir tous les produits",
+      noProduct: "Aucun produit dans cette catégorie.",
+      checkoutBreadcrumb: "Paiement & Livraison"
+    },
+    homeHero: {
+      titleLine1: "Vos achats du quotidien,",
+      titleLine2: "livrés chez vous à",
+      titleHighlight: "Cherchell & Sidi Ghiles",
+      subtitle: "Boutique en ligne avec livraison à domicile pour vos achats réguliers.",
+      cta: "Découvrir nos produits"
+    },
+    features: {
+      fastDelivery: "Livraison Rapide",
+      fastDeliveryDesc: "On vous livre vos achats directement à domicile dans les communes de Cherchell et Sidi Ghiles.",
+      wideChoice: "Large Choix de Produits",
+      wideChoiceDesc: "Trouvez facilement tous vos articles de maison, cuisine, cosmétiques, plastiques, et quincaillerie en un seul endroit.",
+      cod: "Paiement à la Livraison",
+      codDesc: "Payez vos achats en espèces lorsque notre livreur se présente devant votre porte, en toute sécurité."
+    }
+  },
+  ar: {
+    home: "الرئيسية",
+    products: "المنتجات",
+    categories: "الفئات",
+    admin: "الإدارة",
+    search: "ابحث عن منتج...",
+    cart: "السلة",
+    addToCart: "إضافة",
+    allCategories: "جميع الفئات",
+    popularCategories: "الفئات الشائعة",
+    howItWorks: "كيف تعمل؟",
+    step1Title: "اطلب عبر الإنترنت",
+    step1Desc: "أضف أغراضك إلى السلة واطلب بسهولة.",
+    step2Title: "التأكيد",
+    step2Desc: "سنتصل بك لتأكيد الطلب ووقت التوصيل.",
+    step3Title: "الاستلام والدفع",
+    step3Desc: "استلم منتجاتك في المنزل وادفع لعامل التوصيل.",
+    emptyCart: "سلة المشتريات فارغة",
+    total: "المجموع",
+    checkoutBtn: "إتمام الطلب",
+    deliveryInfo: "معلومات التوصيل",
+    fullName: "الاسم واللقب *",
+    fullNamePlaceholder: "اسمك الكامل",
+    phone: "رقم الهاتف *",
+    phonePlaceholder: "رقم هاتفك",
+    city: "المدينة / البلدية *",
+    address: "العنوان بالتفصيل *",
+    addressPlaceholder: "الحي، الشارع، المبنى، الطابق...",
+    payment: "الدفع",
+    paymentCash: "الدفع عند الاستلام",
+    paymentCashDesc: "ستقوم بدفع المبلغ الإجمالي نقداً للمندوب عند استلام طلبك.",
+    confirmOrder: "تأكيد الطلب",
+    orderSummary: "ملخص الطلب",
+    deliveryFee: "تكلفة التوصيل",
+    freeDelivery: "مجاني",
+    orderConfirmedTitle: "تم تأكيد الطلب!",
+    orderConfirmedDesc: "تم تسجيل طلبك بنجاح. سيتصل بك مندوب التوصيل قريباً جداً لتنسيق التوصيل.",
+    backShop: "العودة للمتجر",
+    productDescPlaceholder: "لا يوجد وصف",
+    cities: {
+      cherchell: "شرشال",
+      sidi_ghiles: "سيدي غيلاس",
+      autres: "أخرى (التوصيل غير مضمون)"
+    },
+    homeTitles: {
+      someProducts: "بعض منتجاتنا",
+      discover: "اكتشف مجموعتنا",
+      viewAll: "عرض كل المنتجات",
+      noProduct: "لا توجد منتجات في هذه الفئة.",
+      checkoutBreadcrumb: "الدفع والتوصيل"
+    },
+    homeHero: {
+      titleLine1: "مشترياتك اليومية،",
+      titleLine2: "تصلك إلى باب منزلك في",
+      titleHighlight: "شرشال وسيدي غيلاس",
+      subtitle: "متجر إلكتروني مع توصيل للمنزل لمشترياتك اليومية.",
+      cta: "اكتشف منتجاتنا"
+    },
+    features: {
+      fastDelivery: "توصيل سريع",
+      fastDeliveryDesc: "نقوم بتوصيل مشترياتك مباشرة إلى منزلك في بلديات شرشال وسيدي غيلاس.",
+      wideChoice: "تشكيلة واسعة من المنتجات",
+      wideChoiceDesc: "اعثر بسهولة على جميع أدوات المنزل، المطبخ، مستحضرات التجميل، البلاستيك والأجهزة في مكان واحد.",
+      cod: "الدفع عند الاستلام",
+      codDesc: "ادفع قيمة مشترياتك نقدًا عند استلامها من عامل التوصيل الخاص بنا، بكل أمان."
+    }
+  }
+};
+
 export default function App() {
-  const [view, setView] = useState<'home' | 'products' | 'checkout' | 'success' | 'admin'>('home');
-  const [category, setCategory] = useState<Category>('divers');
+  const [view, setView] = useState<'home' | 'products' | 'categories' | 'checkout' | 'success' | 'admin'>('home');
+  const [category, setCategory] = useState<Category | 'all'>('all');
   const [cart, setCart] = useState<CartItem[]>([]);
   const [isCartOpen, setIsCartOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [lang, setLang] = useState<'fr' | 'ar'>('fr');
-  const [isDarkMode, setIsDarkMode] = useState(false);
-
-  React.useEffect(() => {
-    if (isDarkMode) {
-      document.documentElement.classList.add('dark');
-    } else {
-      document.documentElement.classList.remove('dark');
-    }
-  }, [isDarkMode]);
-
-  const t = {
-    home: { fr: "Accueil", ar: "الرئيسية" },
-    products: { fr: "Produits", ar: "المنتجات" },
-    categories: { fr: "Catégories", ar: "التصنيفات" },
-    cart: { fr: "Mon Panier", ar: "سلة المشتريات" },
-    checkout: { fr: "Commander", ar: "إتمام الطلب" },
-    search: { fr: "Recherche...", ar: "بحث..." },
-  };
+  const t = TRANSLATIONS[lang];
+  const isAr = lang === 'ar';
 
   const [products, setProducts] = useState<Product[]>(INITIAL_PRODUCTS);
 
@@ -414,12 +535,24 @@ export default function App() {
     try {
       setIsGeneratingMetadata(true);
       const result = await getAiClient().models.generateContent({
-        model: "gemini-3-flash-preview",
+        model: "gemini-2.5-flash",
         contents: `You are an assistant for a store in Algeria. Generate metadata for this product: "${name}".
-        Provide ONLY valid JSON with no markdown formatting. The JSON must contain exactly these keys: "nameAr", "descriptionFr" (short marketing phrase), "descriptionAr", "category" (one of: ${CATEGORIES_LIST.map(c=>c.id).join(', ')}).`
+        Provide ONLY valid JSON.`,
+        config: {
+          responseMimeType: "application/json",
+          responseSchema: {
+            type: Type.OBJECT,
+            properties: {
+              nameAr: { type: Type.STRING },
+              descriptionFr: { type: Type.STRING, description: "short marketing phrase" },
+              descriptionAr: { type: Type.STRING },
+              category: { type: Type.STRING }
+            },
+            required: ["nameAr", "descriptionFr", "descriptionAr", "category"]
+          }
+        }
       });
       let text = result.text || "{}";
-      text = text.replace(/```(json)?\n?/g, '').replace(/```/g, '').trim();
       const data = JSON.parse(text);
       setNewProduct(prev => ({ ...prev, ...data }));
     } catch (error: any) {
@@ -458,55 +591,37 @@ export default function App() {
   const deliveryFee = 200;
 
   return (
-    <div className={`min-h-screen bg-theme-bg font-sans flex flex-col text-theme-text ${isDarkMode ? 'dark' : ''}`} dir={lang === 'ar' ? 'rtl' : 'ltr'}>
+    <div className={`min-h-screen bg-theme-bg font-sans flex flex-col text-theme-text`} dir={lang === 'ar' ? 'rtl' : 'ltr'}>
       <header className="sticky top-0 z-40 bg-theme-bg/80 backdrop-blur-md border-b border-theme-border h-[80px] shrink-0">
         <div className="max-w-[1200px] mx-auto w-full h-full px-[20px] md:px-[30px] flex items-center justify-between">
           
           <div className="flex items-center gap-[20px] md:gap-[30px] h-full">
-            <button className="md:hidden p-2 -ml-2 text-theme-text" onClick={() => setIsMobileMenuOpen(true)}>
+            <button className="md:hidden p-2 -ms-2 text-theme-text" onClick={() => setIsMobileMenuOpen(true)}>
               <Menu size={24} />
             </button>
             <div className="flex items-center gap-[12px] cursor-pointer group" onClick={() => navigateTo('home')}>
-              <div className="w-[45px] h-[45px] bg-theme-primary rounded-[12px] flex items-center justify-center text-white shadow-sm transition-transform group-hover:scale-105">
-                <Store size={24} />
-              </div>
-              <div className="flex flex-col">
-                <span className="font-serif text-[20px] font-bold tracking-tight leading-none">Cherchell</span>
-                <span className="text-[12px] text-theme-muted font-bold tracking-[0.2em] uppercase mt-1">Shopping</span>
-              </div>
+              <img src="/logo.png" className="h-[60px] w-auto object-contain transition-transform group-hover:scale-105" alt="Cherchell Shopping" />
             </div>
-            <nav className="hidden md:flex items-center gap-[24px] ml-[20px]">
-              <button onClick={() => navigateTo('home')} className={`text-[14px] font-bold transition-colors ${view === 'home' ? 'text-theme-primary' : 'text-theme-muted hover:text-theme-text'}`}>{t.home[lang]}</button>
-              <button onClick={() => navigateTo('products')} className={`text-[14px] font-bold transition-colors ${view === 'products' ? 'text-theme-primary' : 'text-theme-muted hover:text-theme-text'}`}>{t.products[lang]}</button>
-              <div className="relative group">
-                <button 
-                  className={`text-[14px] font-bold transition-colors text-theme-muted hover:text-theme-text flex items-center gap-1`}
-                >
-                  {t.categories[lang]} <ChevronDown size={14} />
-                </button>
-                <div className="absolute top-full left-0 mt-[10px] bg-white border border-theme-border rounded-[12px] shadow-lg py-[8px] w-[220px] opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-50">
-                  {CATEGORIES_LIST.map(c => (
-                     <button key={c.id} onClick={() => { setCategory(c.id as Category); navigateTo('products'); }} className="w-full text-left px-[16px] py-[8px] text-[13px] font-bold text-theme-text hover:bg-theme-bg flex items-center justify-between">
-                       <span>{c.fr}</span>
-                       <span className="text-[11px] text-theme-muted">{c.ar}</span>
-                     </button>
-                  ))}
-                </div>
-              </div>
+            <nav className="hidden md:flex items-center gap-[24px] ms-[20px]">
+              <button onClick={() => navigateTo('home')} className={`text-[14px] font-bold transition-colors ${view === 'home' ? 'text-theme-primary' : 'text-theme-muted hover:text-theme-text'}`}>{t.home}</button>
+              <button onClick={() => { setCategory('all'); navigateTo('products'); }} className={`text-[14px] font-bold transition-colors ${view === 'products' && category === 'all' ? 'text-theme-primary' : 'text-theme-muted hover:text-theme-text'}`}>{t.products}</button>
+              <button 
+                onClick={() => setView('categories')} 
+                className={`text-[14px] font-bold transition-colors ${view === 'categories' ? 'text-theme-primary' : 'text-theme-muted hover:text-theme-text'}`}
+              >
+                {t.categories}
+              </button>
             </nav>
           </div>
 
           <div className="flex items-center gap-[16px]">
-            <button onClick={() => setLang(lang === 'fr' ? 'ar' : 'fr')} className="p-[10px] bg-white border border-theme-border rounded-full hover:bg-theme-bg transition-colors shadow-sm flex items-center gap-1 font-bold text-[12px]">
+            <button onClick={() => setLang(lang === 'fr' ? 'ar' : 'fr')} className="p-[10px] bg-theme-secondary border border-theme-border rounded-full hover:bg-theme-bg transition-colors shadow-sm flex items-center gap-1 font-bold text-[12px]">
               <Globe size={18} className="text-theme-text" /> 
               <span className="hidden md:inline">{lang === 'fr' ? 'AR' : 'FR'}</span>
             </button>
-            <button onClick={() => setIsDarkMode(!isDarkMode)} className="p-[10px] bg-white border border-theme-border rounded-full hover:bg-theme-bg transition-colors shadow-sm">
-              {isDarkMode ? <Sun size={20} className="text-theme-text" /> : <Moon size={20} className="text-theme-text" />}
-            </button>
-            <button onClick={() => setIsCartOpen(true)} className="relative p-[10px] bg-white border border-theme-border rounded-full hover:bg-theme-bg transition-colors shadow-sm">
+            <button onClick={() => setIsCartOpen(true)} className="relative p-[10px] bg-theme-secondary border border-theme-border rounded-full hover:bg-theme-bg transition-colors shadow-sm">
               <ShoppingCart size={20} className="text-theme-text" />
-              {cart.length > 0 && <span className="absolute -top-1 -right-1 bg-theme-primary text-white text-[11px] font-bold w-[20px] h-[20px] rounded-full flex items-center justify-center shadow-sm">{cart.reduce((s,i)=>s+i.quantity,0)}</span>}
+              {cart.length > 0 && <span className="absolute -top-1 -end-1 bg-theme-primary text-theme-primary-foreground text-[11px] font-bold w-[20px] h-[20px] rounded-full flex items-center justify-center shadow-sm">{cart.reduce((s,i)=>s+i.quantity,0)}</span>}
             </button>
           </div>
         </div>
@@ -522,14 +637,14 @@ export default function App() {
               {/* HERO BANNER */}
               <div className="relative bg-theme-text rounded-[24px] overflow-hidden shadow-lg border border-theme-border flex items-center min-h-[300px]">
                 <div className="absolute inset-0 bg-black/40 z-10 block md:hidden"></div>
-                <div className="relative z-20 flex-grow p-[30px] md:p-[60px] flex flex-col justify-center w-full md:w-3/5 text-center md:text-left">
+                <div className="relative z-20 flex-grow p-[30px] md:p-[60px] flex flex-col justify-center w-full md:w-3/5 text-center md:text-start">
                   <h1 className="text-[32px] md:text-[48px] font-serif font-black text-white leading-[1.1] tracking-tight drop-shadow-md">
-                    Vos achats du quotidien,<br/>livrés chez vous à
-                    <span className="text-[#f1c40f] block mt-2">Cherchell & Sidi Ghiles</span>
+                    {t.homeHero.titleLine1}<br/>{t.homeHero.titleLine2}
+                    <span className="text-[#f1c40f] block mt-2">{t.homeHero.titleHighlight}</span>
                   </h1>
-                  <p className="mt-[20px] text-gray-200 text-[16px] md:text-[18px] max-w-xl mx-auto md:mx-0 font-medium">Boutique en ligne avec livraison à domicile pour vos achats réguliers.</p>
-                  <button onClick={() => navigateTo('products')} className="mt-[30px] self-center md:self-start bg-theme-primary hover:bg-[#c0392b] text-white px-[30px] py-[15px] rounded-[12px] font-extrabold text-[16px] shadow-sm transition-all hover:shadow-md flex items-center gap-2 w-max">
-                    Découvrir nos produits <ChevronRight size={18} />
+                  <p className="mt-[20px] text-gray-200 text-[16px] md:text-[18px] max-w-xl mx-auto md:mx-0 font-medium">{t.homeHero.subtitle}</p>
+                  <button onClick={() => { setCategory('all'); navigateTo('products'); }} className="mt-[30px] self-center md:self-start bg-theme-primary hover:bg-[#c0392b] text-theme-primary-foreground px-[30px] py-[15px] rounded-[12px] font-extrabold text-[16px] shadow-sm transition-all hover:shadow-md flex items-center gap-2 w-max">
+                    {t.homeHero.cta} {isAr ? <ChevronRight size={18} className="rotate-180" /> : <ChevronRight size={18} />}
                   </button>
                 </div>
               </div>
@@ -538,74 +653,113 @@ export default function App() {
               
               <div className="flex justify-between items-end mb-[10px]">
                 <div>
-                  <h2 className="text-[24px] font-serif font-bold text-theme-text">Certains de nos Produits</h2>
-                  <p className="text-theme-muted text-[14px] mt-1">Découvrez notre collection</p>
+                  <h2 className="text-[24px] font-serif font-bold text-theme-text">{t.homeTitles.someProducts}</h2>
+                  <p className="text-theme-muted text-[14px] mt-1">{t.homeTitles.discover}</p>
                 </div>
               </div>
 
               <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-[15px]">
-                {products.slice(0, 12).map(p => <ProductCard key={`home-${p.id}`} product={p} onAdd={addToCart} />)}
+                {products.slice(0, 12).map(p => <ProductCard key={`home-${p.id}`} product={p} onAdd={addToCart} lang={lang} />)}
               </div>
               
               <div className="flex justify-center mt-[10px]">
                 <button 
-                  onClick={() => navigateTo('products')}
-                  className="bg-white border-2 border-theme-border text-theme-text font-bold py-[12px] px-[32px] rounded-[16px] hover:bg-theme-bg transition-colors shadow-sm text-[16px] flex items-center gap-2"
+                  onClick={() => { setCategory('all'); navigateTo('products'); }}
+                  className="bg-theme-secondary border-2 border-theme-border text-theme-text font-bold py-[12px] px-[32px] rounded-[16px] hover:bg-theme-bg transition-colors shadow-sm text-[16px] flex items-center gap-2"
                 >
-                  Voir tous les produits <ArrowRight size={18} />
+                  {t.homeTitles.viewAll} <ArrowRight size={18} />
                 </button>
               </div>
 
             {/* DESCRIPTION SERVICE (3 columns) */}
               <div className="grid grid-cols-1 md:grid-cols-3 gap-[20px]">
-                <div className="bg-white p-[24px] rounded-[20px] border border-theme-border shadow-sm flex flex-col items-center text-center">
+                <div className="bg-theme-secondary p-[24px] rounded-[20px] border border-theme-border shadow-sm flex flex-col items-center text-center">
                    <div className="w-[60px] h-[60px] bg-theme-bg rounded-full flex items-center justify-center text-theme-primary mb-[16px]">
                      <Package size={28} />
                    </div>
-                   <h3 className="font-bold text-[18px] text-theme-text mb-[8px]">Large Choix de Produits</h3>
-                   <p className="text-theme-muted text-[14px]">Trouvez facilement tous vos articles de maison, cuisine, cosmétiques, plastiques, et quincaillerie en un seul endroit.</p>
+                   <h3 className="font-bold text-[18px] text-theme-text mb-[8px]">{t.features.wideChoice}</h3>
+                   <p className="text-theme-muted text-[14px]">{t.features.wideChoiceDesc}</p>
                 </div>
-                <div className="bg-white p-[24px] rounded-[20px] border border-theme-border shadow-sm flex flex-col items-center text-center">
+                <div className="bg-theme-secondary p-[24px] rounded-[20px] border border-theme-border shadow-sm flex flex-col items-center text-center">
                    <div className="w-[60px] h-[60px] bg-theme-bg rounded-full flex items-center justify-center text-theme-primary mb-[16px]">
                      <Truck size={28} />
                    </div>
-                   <h3 className="font-bold text-[18px] text-theme-text mb-[8px]">Livraison Rapide</h3>
-                   <p className="text-theme-muted text-[14px]">On vous livre vos achats directement à domicile dans les communes de Cherchell et Sidi Ghiles.</p>
+                   <h3 className="font-bold text-[18px] text-theme-text mb-[8px]">{t.features.fastDelivery}</h3>
+                   <p className="text-theme-muted text-[14px]">{t.features.fastDeliveryDesc}</p>
                 </div>
-                <div className="bg-white p-[24px] rounded-[20px] border border-theme-border shadow-sm flex flex-col items-center text-center">
+                <div className="bg-theme-secondary p-[24px] rounded-[20px] border border-theme-border shadow-sm flex flex-col items-center text-center">
                    <div className="w-[60px] h-[60px] bg-theme-bg rounded-full flex items-center justify-center text-theme-primary mb-[16px]">
                      <Banknote size={28} />
                    </div>
-                   <h3 className="font-bold text-[18px] text-theme-text mb-[8px]">Paiement à la Livraison</h3>
-                   <p className="text-theme-muted text-[14px]">Payez vos achats en espèces lorsque notre livreur se présente devant votre porte, en toute sécurité.</p>
+                   <h3 className="font-bold text-[18px] text-theme-text mb-[8px]">{t.features.cod}</h3>
+                   <p className="text-theme-muted text-[14px]">{t.features.codDesc}</p>
                 </div>
               </div>
 
               {/* COMMENT CA SE PASSE LE SERVICE */}
               <div className="bg-theme-bg p-[40px] rounded-[24px] flex flex-col gap-[30px] border border-theme-border text-center relative overflow-hidden">
-                 <h2 className="text-[24px] font-serif font-bold text-theme-text z-10 relative mt-4">Comment ça marche ?</h2>
+                 <h2 className="text-[24px] font-serif font-bold text-theme-text z-10 relative mt-4">{t.howItWorks}</h2>
                  <div className="grid grid-cols-1 md:grid-cols-3 gap-[30px] z-10 relative my-[20px]">
                     <div className="flex flex-col items-center gap-[12px]">
                        <div className="text-[32px] font-black text-theme-primary/20 leading-none">01</div>
                        <ShoppingCart size={32} className="text-theme-text mb-2" />
-                       <h4 className="font-bold text-[16px]">Commandez en ligne</h4>
-                       <p className="text-[14px] text-theme-muted">Ajoutez vos articles au panier et passez commande facilement.</p>
+                       <h4 className="font-bold text-[16px]">{t.step1Title}</h4>
+                       <p className="text-[14px] text-theme-muted">{t.step1Desc}</p>
                     </div>
-                    <div className="hidden md:block absolute top-[60%] left-[25%] w-[16%] h-[2px] border-t-2 border-dashed border-theme-text/20 -translate-y-1/2"></div>
+                    <div className="hidden md:block absolute top-[60%] start-[25%] w-[16%] h-[2px] border-t-2 border-dashed border-theme-text/20 -translate-y-1/2"></div>
                     <div className="flex flex-col items-center gap-[12px]">
                        <div className="text-[32px] font-black text-theme-primary/20 leading-none">02</div>
                        <PhoneCall size={32} className="text-theme-text mb-2" />
-                       <h4 className="font-bold text-[16px]">Confirmation</h4>
-                       <p className="text-[14px] text-theme-muted">Nous vous appelons pour confirmer la commande et l'heure de livraison.</p>
+                       <h4 className="font-bold text-[16px]">{t.step2Title}</h4>
+                       <p className="text-[14px] text-theme-muted">{t.step2Desc}</p>
                     </div>
-                    <div className="hidden md:block absolute top-[60%] right-[25%] w-[16%] h-[2px] border-t-2 border-dashed border-theme-text/20 -translate-y-1/2"></div>
+                    <div className="hidden md:block absolute top-[60%] end-[25%] w-[16%] h-[2px] border-t-2 border-dashed border-theme-text/20 -translate-y-1/2"></div>
                     <div className="flex flex-col items-center gap-[12px]">
                        <div className="text-[32px] font-black text-theme-primary/20 leading-none">03</div>
                        <Home size={32} className="text-theme-text mb-2" />
-                       <h4 className="font-bold text-[16px]">Réception & Paiement</h4>
-                       <p className="text-[14px] text-theme-muted">Recevez vos produits chez vous et payez le livreur.</p>
+                       <h4 className="font-bold text-[16px]">{t.step3Title}</h4>
+                       <p className="text-[14px] text-theme-muted">{t.step3Desc}</p>
                     </div>
                  </div>
+              </div>
+            </motion.div>
+          )}
+
+          {/* CATEGORIES COMPONENT */}
+          {view === 'categories' && (
+            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex flex-col gap-[30px]">
+              <div className="flex flex-col md:flex-row md:items-end justify-between gap-[15px] mb-[10px] pb-[15px] border-b border-theme-border">
+                <h2 className="text-[28px] font-serif font-bold text-theme-text tracking-tight capitalize">{t.categories}</h2>
+                <div className="relative w-full md:w-[300px]">
+                  <input 
+                    type="text" 
+                    placeholder={t.search} 
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    className="w-full bg-theme-secondary border border-theme-border rounded-full py-[10px] ps-[40px] pe-[20px] text-[14px] focus:outline-none focus:border-theme-primary transition-colors shadow-sm"
+                  />
+                  <Search size={18} className="absolute start-[15px] top-1/2 -translate-y-1/2 text-theme-muted" />
+                </div>
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-[20px]">
+                {CATEGORIES_LIST
+                  .map(c => ({
+                    ...c, 
+                    productCount: products.filter(p => p.category === c.id).length
+                  }))
+                  .filter(c => (isAr ? c.ar : c.fr)?.toLowerCase().includes(searchQuery?.toLowerCase() || ''))
+                  .sort((a, b) => b.productCount - a.productCount)
+                  .map(c => (
+                    <button 
+                      key={c.id} 
+                      onClick={() => { setCategory(c.id as Category); setSearchQuery(''); navigateTo('products'); }}
+                      className="bg-theme-secondary border border-theme-border rounded-[16px] p-[24px] hover:border-theme-primary hover:shadow-md transition-all text-start flex flex-col gap-[10px] group"
+                    >
+                      <span className="font-bold text-[18px] text-theme-text group-hover:text-theme-primary transition-colors">{isAr ? c.ar : c.fr}</span>
+                      <span className="text-[14px] text-theme-muted bg-theme-bg px-[12px] py-[4px] rounded-full inline-block w-max font-medium">{c.productCount} {t.products}</span>
+                    </button>
+                  ))
+                }
               </div>
             </motion.div>
           )}
@@ -613,19 +767,32 @@ export default function App() {
           {/* PRODUCTS COMPONENT */}
           {view === 'products' && (
             <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex flex-col gap-[30px]">
-              <div className="flex justify-between items-end mb-[10px] pb-[15px] border-b border-theme-border">
+              <div className="flex flex-col md:flex-row md:items-end justify-between gap-[15px] mb-[10px] pb-[15px] border-b border-theme-border">
                 <div>
-                  <h2 className="text-[28px] font-serif font-bold text-theme-text tracking-tight capitalize">{CATEGORIES_LIST.find(c => c.id === category)?.fr}</h2>
-                  <p className="text-theme-muted text-[14px] mt-1">{CATEGORIES_LIST.find(c => c.id === category)?.ar}</p>
+                  <h2 className="text-[28px] font-serif font-bold text-theme-text tracking-tight capitalize">{category === 'all' ? t.allCategories : (lang === 'fr' ? CATEGORIES_LIST.find(c => c.id === category)?.fr : CATEGORIES_LIST.find(c => c.id === category)?.ar)}</h2>
+                </div>
+                <div className="relative w-full md:w-[300px]">
+                  <input 
+                    type="text" 
+                    placeholder={t.search} 
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    className="w-full bg-theme-secondary border border-theme-border rounded-full py-[10px] ps-[40px] pe-[20px] text-[14px] focus:outline-none focus:border-theme-primary transition-colors shadow-sm"
+                  />
+                  <Search size={18} className="absolute start-[15px] top-1/2 -translate-y-1/2 text-theme-muted" />
                 </div>
               </div>
 
               <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-[15px]">
-                {products.filter(p => p.category === category).map(p => <ProductCard key={p.id} product={p} onAdd={addToCart} />)}
-                {products.filter(p => p.category === category).length === 0 && (
-                  <div className="col-span-full py-[60px] text-center bg-white border border-theme-border rounded-[16px]">
+                {(category === 'all' ? products : products.filter(p => p.category === category))
+                  .filter(p => (isAr ? p.nameAr : p.nameFr)?.toLowerCase().includes(searchQuery?.toLowerCase() || '') || (isAr ? p.descriptionAr : p.descriptionFr || '')?.toLowerCase().includes(searchQuery?.toLowerCase() || ''))
+                  .map(p => <ProductCard key={p.id} product={p} onAdd={addToCart} lang={lang} />)}
+                {(category === 'all' ? products : products.filter(p => p.category === category))
+                  .filter(p => (isAr ? p.nameAr : p.nameFr)?.toLowerCase().includes(searchQuery?.toLowerCase() || '') || (isAr ? p.descriptionAr : p.descriptionFr || '')?.toLowerCase().includes(searchQuery?.toLowerCase() || ''))
+                  .length === 0 && (
+                  <div className="col-span-full py-[60px] text-center bg-theme-secondary border border-theme-border rounded-[16px]">
                     <Package size={48} className="mx-auto text-theme-muted mb-[16px] opacity-20" />
-                    <p className="text-theme-muted font-bold text-[16px]">Aucun produit dans cette catégorie.</p>
+                    <p className="text-theme-muted font-bold text-[16px]">{t.homeTitles.noProduct}</p>
                   </div>
                 )}
               </div>
@@ -636,71 +803,71 @@ export default function App() {
           {view === 'checkout' && (
             <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="w-full">
               <div className="flex items-center gap-[10px] text-theme-muted text-[13px] mb-[30px] font-bold">
-                <button onClick={() => navigateTo('products')} className="hover:text-theme-text transition-colors">Boutique</button>
+                <button onClick={() => { setCategory('all'); navigateTo('products'); }} className="hover:text-theme-text transition-colors">{t.products}</button>
                 <ChevronRight size={14} />
-                <span className="text-theme-text">Paiement & Livraison</span>
+                <span className="text-theme-text">{t.homeTitles.checkoutBreadcrumb}</span>
               </div>
 
               <div className="flex flex-col lg:flex-row gap-[40px]">
                 <form className="flex-grow flex flex-col gap-[30px]" onSubmit={handleOrderSubmit}>
                   
-                  <div className="bg-white border border-theme-border rounded-[24px] p-[30px] shadow-sm">
-                    <h2 className="text-[20px] font-bold text-theme-text mb-[24px] tracking-tight">Informations de livraison</h2>
+                  <div className="bg-theme-secondary border border-theme-border rounded-[24px] p-[30px] shadow-sm">
+                    <h2 className="text-[20px] font-bold text-theme-text mb-[24px] tracking-tight">{t.deliveryInfo}</h2>
                     <div className="flex flex-col gap-[20px]">
                       <div>
-                        <label className="block text-[13px] font-bold text-theme-muted mb-[8px] uppercase tracking-wider">Nom et Prénom *</label>
-                        <input required className="w-full border border-theme-border rounded-[12px] p-[16px] bg-theme-bg focus:bg-white focus:border-theme-primary outline-none transition-all text-[15px] shadow-inner" placeholder="Votre nom complet" value={checkoutForm.name} onChange={e => setCheckoutForm({...checkoutForm, name: e.target.value})} />
+                        <label className="block text-[13px] font-bold text-theme-muted mb-[8px] uppercase tracking-wider">{t.fullName}</label>
+                        <input required className="w-full border border-theme-border rounded-[12px] p-[16px] bg-theme-bg focus:bg-theme-secondary focus:border-theme-primary outline-none transition-all text-[15px] shadow-inner" placeholder={t.fullNamePlaceholder} value={checkoutForm.name} onChange={e => setCheckoutForm({...checkoutForm, name: e.target.value})} />
                       </div>
                       <div>
-                        <label className="block text-[13px] font-bold text-theme-muted mb-[8px] uppercase tracking-wider">Téléphone *</label>
-                        <input required type="tel" className="w-full border border-theme-border rounded-[12px] p-[16px] bg-theme-bg focus:bg-white focus:border-theme-primary outline-none transition-all text-[15px] shadow-inner" placeholder="Votre numéro de téléphone" value={checkoutForm.phone} onChange={e => setCheckoutForm({...checkoutForm, phone: e.target.value})} />
+                        <label className="block text-[13px] font-bold text-theme-muted mb-[8px] uppercase tracking-wider">{t.phone}</label>
+                        <input required type="tel" className="w-full border border-theme-border rounded-[12px] p-[16px] bg-theme-bg focus:bg-theme-secondary focus:border-theme-primary outline-none transition-all text-[15px] shadow-inner" placeholder={t.phonePlaceholder} value={checkoutForm.phone} onChange={e => setCheckoutForm({...checkoutForm, phone: e.target.value})} />
                       </div>
                       <div>
-                        <label className="block text-[13px] font-bold text-theme-muted mb-[8px] uppercase tracking-wider">Ville / Commune *</label>
+                        <label className="block text-[13px] font-bold text-theme-muted mb-[8px] uppercase tracking-wider">{t.city}</label>
                         <div className="relative">
-                          <select required className="w-full appearance-none border border-theme-border rounded-[12px] p-[16px] pr-[40px] bg-theme-bg focus:bg-white focus:border-theme-primary outline-none transition-all text-[15px] shadow-inner" value={checkoutForm.city} onChange={e => setCheckoutForm({...checkoutForm, city: e.target.value})}>
-                            <option value="cherchell">Cherchell / شرشال</option>
-                            <option value="sidi_ghiles">Sidi Ghiles / سيدي غيلاس</option>
-                            <option value="autres">Autres / أخرى (Livraison non garantie)</option>
+                          <select required className="w-full appearance-none border border-theme-border rounded-[12px] p-[16px] pe-[40px] bg-theme-bg focus:bg-theme-secondary focus:border-theme-primary outline-none transition-all text-[15px] shadow-inner" value={checkoutForm.city} onChange={e => setCheckoutForm({...checkoutForm, city: e.target.value})}>
+                            <option value="cherchell">{t.cities.cherchell}</option>
+                            <option value="sidi_ghiles">{t.cities.sidi_ghiles}</option>
+                            <option value="autres">{t.cities.autres}</option>
                           </select>
-                          <ChevronRight size={18} className="absolute right-4 top-1/2 -translate-y-1/2 rotate-90 text-theme-muted pointer-events-none" />
+                          <ChevronRight size={18} className="absolute end-4 top-1/2 -translate-y-1/2 rotate-90 text-theme-muted pointer-events-none" />
                         </div>
                       </div>
                       <div>
-                        <label className="block text-[13px] font-bold text-theme-muted mb-[8px] uppercase tracking-wider">Adresse complète *</label>
-                        <textarea required rows={3} className="w-full border border-theme-border rounded-[12px] p-[16px] bg-theme-bg focus:bg-white focus:border-theme-primary outline-none transition-all text-[15px] shadow-inner resize-none" placeholder="Nom de rue, quartier, point de repère..." value={checkoutForm.address} onChange={e => setCheckoutForm({...checkoutForm, address: e.target.value})} />
+                        <label className="block text-[13px] font-bold text-theme-muted mb-[8px] uppercase tracking-wider">{t.address}</label>
+                        <textarea required rows={3} className="w-full border border-theme-border rounded-[12px] p-[16px] bg-theme-bg focus:bg-theme-secondary focus:border-theme-primary outline-none transition-all text-[15px] shadow-inner resize-none" placeholder={t.addressPlaceholder} value={checkoutForm.address} onChange={e => setCheckoutForm({...checkoutForm, address: e.target.value})} />
                       </div>
                     </div>
                   </div>
 
-                  <div className="bg-white border border-theme-border rounded-[24px] p-[30px] shadow-sm">
-                    <h2 className="text-[20px] font-bold text-theme-text mb-[24px] tracking-tight">Paiement</h2>
+                  <div className="bg-theme-secondary border border-theme-border rounded-[24px] p-[30px] shadow-sm">
+                    <h2 className="text-[20px] font-bold text-theme-text mb-[24px] tracking-tight">{t.payment}</h2>
                     <div className="bg-green-50 border border-green-200 p-[20px] rounded-[16px] flex items-start gap-[16px]">
                       <div className="bg-green-100 p-2 rounded-full text-green-600 mt-1"><CheckCircle size={20} /></div>
                       <div>
-                        <h4 className="font-bold text-green-800 text-[15px] mb-[4px]">Paiement à la livraison</h4>
-                        <p className="text-green-700 text-[14px]">Vous paierez le montant total en espèces au livreur lors de la réception de votre commande.</p>
+                        <h4 className="font-bold text-green-800 text-[15px] mb-[4px]">{t.paymentCash}</h4>
+                        <p className="text-green-700 text-[14px]">{t.paymentCashDesc}</p>
                       </div>
                     </div>
                   </div>
 
-                  <button disabled={isSubmittingOrder} type="submit" className="w-full bg-theme-primary text-white font-black py-[20px] rounded-[16px] text-[18px] shadow-lg hover:-translate-y-1 transition-all hover:shadow-xl mt-[10px] disabled:opacity-50 flex justify-center items-center gap-2">
+                  <button disabled={isSubmittingOrder} type="submit" className="w-full bg-theme-primary text-theme-primary-foreground font-black py-[20px] rounded-[16px] text-[18px] shadow-lg hover:-translate-y-1 transition-all hover:shadow-xl mt-[10px] disabled:opacity-50 flex justify-center items-center gap-2">
                     {isSubmittingOrder ? <Loader2 size={24} className="animate-spin" /> : null}
-                    CONFIRMER LA COMMANDE ({totalCart + deliveryFee} DA)
+                    {t.confirmOrder} ({totalCart + deliveryFee} DA)
                   </button>
 
                 </form>
 
                 <div className="w-full lg:w-[400px] shrink-0 flex flex-col gap-[30px]">
-                  <div className="bg-white border border-theme-border rounded-[24px] p-[30px] shadow-sm sticky top-[100px]">
-                    <h2 className="text-[20px] font-bold text-theme-text mb-[24px] tracking-tight border-b border-theme-border pb-[16px]">Résumé de la commande</h2>
+                  <div className="bg-theme-secondary border border-theme-border rounded-[24px] p-[30px] shadow-sm sticky top-[100px]">
+                    <h2 className="text-[20px] font-bold text-theme-text mb-[24px] tracking-tight border-b border-theme-border pb-[16px]">{t.orderSummary}</h2>
                     
-                    <div className="flex flex-col gap-[16px] mb-[24px] max-h-[300px] overflow-y-auto pr-2">
+                    <div className="flex flex-col gap-[16px] mb-[24px] max-h-[300px] overflow-y-auto pe-2">
                       {cart.map((item, idx) => (
                         <div key={idx} className="flex gap-[16px] items-center">
                           <img src={item.product.image} className="w-[50px] h-[50px] object-contain bg-theme-bg rounded-[8px] p-1 border border-theme-border/50" />
                           <div className="flex-grow">
-                            <div className="font-bold text-[13px] leading-tight line-clamp-1">{item.product.nameFr}</div>
+                            <div className="font-bold text-[13px] leading-tight line-clamp-1">{lang === 'fr' ? item.product.nameFr : item.product.nameAr}</div>
                             <div className="text-theme-muted text-[12px] mt-0.5">Qté: {item.quantity}</div>
                           </div>
                           <div className="font-bold text-[14px]">{item.product.price * item.quantity} DA</div>
@@ -710,15 +877,15 @@ export default function App() {
 
                     <div className="border-t border-theme-border pt-[20px] flex flex-col gap-[12px]">
                       <div className="flex justify-between items-center text-[14px] text-theme-muted">
-                        <span>Sous-total sous réserve</span>
+                        <span>{t.total}</span>
                         <span className="font-bold text-theme-text">{totalCart} DA</span>
                       </div>
                       <div className="flex justify-between items-center text-[14px] text-theme-muted">
-                        <span>Frais de livraison (Fixe)</span>
+                        <span>{t.deliveryFee}</span>
                         <span className="font-bold text-theme-text">{deliveryFee} DA</span>
                       </div>
                       <div className="border-t border-dashed border-theme-border mt-[8px] pt-[16px] flex justify-between items-end">
-                        <span className="text-[16px] font-bold text-theme-text">Total</span>
+                        <span className="text-[16px] font-bold text-theme-text">{t.total}</span>
                         <span className="text-[28px] font-extrabold text-theme-text leading-none">{totalCart + deliveryFee} DA</span>
                       </div>
                     </div>
@@ -734,13 +901,13 @@ export default function App() {
               <div className="w-[100px] h-[100px] bg-green-100 rounded-full flex items-center justify-center text-green-500 mb-[30px] shadow-inner border border-green-200">
                 <CheckCircle size={48} />
               </div>
-              <h2 className="text-[32px] font-serif font-black text-theme-text mb-[16px] tracking-tight">Commande <span className="text-theme-primary">Confirmée</span> !</h2>
+              <h2 className="text-[32px] font-serif font-black text-theme-text mb-[16px] tracking-tight">{t.orderConfirmedTitle}</h2>
               <p className="text-theme-muted text-[16px] mb-[40px] leading-relaxed">
-                Votre commande a été enregistrée avec succès. Notre livreur vous contactera très prochainement pour convenir de la livraison.
+                {t.orderConfirmedDesc}
               </p>
               <div className="flex justify-center w-full">
                 <button onClick={() => { setCart([]); navigateTo('home'); }} className="bg-theme-text text-theme-secondary font-bold px-[40px] py-[16px] rounded-[16px] hover:bg-black transition-colors shadow-lg w-full sm:w-auto">
-                  Retour à la boutique
+                  {t.backShop}
                 </button>
               </div>
             </motion.div>
@@ -751,7 +918,7 @@ export default function App() {
             <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="w-full">
                 {!user ? (
                   <div className="flex flex-col items-center justify-center py-20 max-w-sm mx-auto w-full">
-                    <div className="bg-white border rounded-[24px] p-[40px] shadow-sm w-full">
+                    <div className="bg-theme-secondary border rounded-[24px] p-[40px] shadow-sm w-full">
                       <div className="w-[60px] h-[60px] bg-theme-primary/10 text-theme-primary rounded-[16px] flex items-center justify-center mx-auto mb-[24px]">
                         <LockIcon size={32} />
                       </div>
@@ -768,11 +935,11 @@ export default function App() {
                       }}>
                         <div>
                           <label className="block text-[12px] font-bold text-theme-muted mb-1 uppercase tracking-wider">Email</label>
-                          <input type="email" required className="w-full border border-theme-border rounded-[12px] p-[12px] bg-theme-bg focus:bg-white focus:border-theme-primary outline-none transition-all text-[15px]" value={email} onChange={e => setEmail(e.target.value)} />
+                          <input type="email" required className="w-full border border-theme-border rounded-[12px] p-[12px] bg-theme-bg focus:bg-theme-secondary focus:border-theme-primary outline-none transition-all text-[15px]" value={email} onChange={e => setEmail(e.target.value)} />
                         </div>
                         <div>
                           <label className="block text-[12px] font-bold text-theme-muted mb-1 uppercase tracking-wider">Mot de passe</label>
-                          <input type="password" required className="w-full border border-theme-border rounded-[12px] p-[12px] bg-theme-bg focus:bg-white focus:border-theme-primary outline-none transition-all text-[15px]" value={password} onChange={e => setPassword(e.target.value)} />
+                          <input type="password" required className="w-full border border-theme-border rounded-[12px] p-[12px] bg-theme-bg focus:bg-theme-secondary focus:border-theme-primary outline-none transition-all text-[15px]" value={password} onChange={e => setPassword(e.target.value)} />
                         </div>
                         <button type="submit" className="w-full bg-theme-text text-theme-secondary font-bold py-[12px] rounded-[12px] hover:opacity-90 flex items-center justify-center gap-2 mt-2">
                           Se connecter
@@ -781,17 +948,17 @@ export default function App() {
 
                       <div className="relative mb-4">
                         <div className="absolute inset-0 flex items-center">
-                          <div className="w-full border-t border-gray-200"></div>
+                          <div className="w-full border-t border-theme-border"></div>
                         </div>
                         <div className="relative flex justify-center text-sm">
-                          <span className="px-2 bg-white text-gray-500">Ou</span>
+                          <span className="px-2 bg-theme-secondary text-theme-muted">Ou</span>
                         </div>
                       </div>
 
                       <div className="flex flex-col gap-4">
                         <button 
                           onClick={async () => { try { await signInWithPopup(auth, new GoogleAuthProvider()); } catch(e) { alert('Erreur Google Auth'); } }} 
-                          className="w-full bg-white border border-gray-300 text-gray-700 py-[12px] rounded-[12px] font-bold flex items-center justify-center gap-3 hover:bg-gray-50 transition-colors"
+                          className="w-full bg-theme-secondary border border-theme-border text-theme-text py-[12px] rounded-[12px] font-bold flex items-center justify-center gap-3 hover:bg-theme-bg transition-colors"
                         >
                           <svg className="w-5 h-5" viewBox="0 0 24 24"><path fill="currentColor" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" /><path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" /><path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" /><path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" /><path fill="none" d="M1 1h22v22H1z" /></svg>
                           Google Login
@@ -808,7 +975,7 @@ export default function App() {
                       </div>
                       <button 
                         onClick={() => navigateTo('home')} 
-                        className="bg-white border border-theme-border text-theme-text text-[13px] font-medium px-[16px] py-[8px] rounded-full shadow-sm hover:bg-theme-bg transition-colors"
+                        className="bg-theme-secondary border border-theme-border text-theme-text text-[13px] font-medium px-[16px] py-[8px] rounded-full shadow-sm hover:bg-theme-bg transition-colors"
                       >
                         Fermer
                       </button>
@@ -820,13 +987,13 @@ export default function App() {
                         <div className="flex flex-col gap-[6px] border-b border-theme-border pb-[20px] mb-[20px]">
                           <button 
                             onClick={() => setAdminTab('dashboard')} 
-                            className={`flex items-center gap-[12px] px-[16px] py-[10px] rounded-[10px] text-[14px] font-bold transition-all ${adminTab === 'dashboard' ? 'bg-theme-text text-theme-secondary shadow-md' : 'text-theme-muted hover:text-theme-text hover:bg-white border border-transparent hover:border-theme-border'}`}
+                            className={`flex items-center gap-[12px] px-[16px] py-[10px] rounded-[10px] text-[14px] font-bold transition-all ${adminTab === 'dashboard' ? 'bg-theme-text text-theme-secondary shadow-md' : 'text-theme-muted hover:text-theme-text hover:bg-theme-secondary border border-transparent hover:border-theme-border'}`}
                           >
                             <LayoutDashboard size={18} /> Dashboard
                           </button>
                           <button 
                             onClick={() => setAdminTab('commandes')} 
-                            className={`flex items-center gap-[12px] px-[16px] py-[10px] rounded-[10px] text-[14px] font-bold transition-all ${adminTab === 'commandes' ? 'bg-theme-text text-theme-secondary shadow-md' : 'text-theme-muted hover:text-theme-text hover:bg-white border border-transparent hover:border-theme-border'}`}
+                            className={`flex items-center gap-[12px] px-[16px] py-[10px] rounded-[10px] text-[14px] font-bold transition-all ${adminTab === 'commandes' ? 'bg-theme-text text-theme-secondary shadow-md' : 'text-theme-muted hover:text-theme-text hover:bg-theme-secondary border border-transparent hover:border-theme-border'}`}
                           >
                             <ShoppingBag size={18} /> Commandes
                           </button>
@@ -834,13 +1001,13 @@ export default function App() {
                         <div className="flex flex-col gap-[6px]">
                           <button 
                             onClick={() => setAdminTab('produits')} 
-                            className={`flex items-center gap-[12px] px-[16px] py-[10px] rounded-[10px] text-[14px] font-bold transition-all ${adminTab === 'produits' ? 'bg-theme-text text-theme-secondary shadow-md' : 'text-theme-muted hover:text-theme-text hover:bg-white border border-transparent hover:border-theme-border'}`}
+                            className={`flex items-center gap-[12px] px-[16px] py-[10px] rounded-[10px] text-[14px] font-bold transition-all ${adminTab === 'produits' ? 'bg-theme-text text-theme-secondary shadow-md' : 'text-theme-muted hover:text-theme-text hover:bg-theme-secondary border border-transparent hover:border-theme-border'}`}
                           >
                             <Package size={18} /> Produits
                           </button>
                           <button 
                             onClick={() => setAdminTab('collections')} 
-                            className={`flex items-center gap-[12px] px-[16px] py-[10px] rounded-[10px] text-[14px] font-bold transition-all ${adminTab === 'collections' ? 'bg-theme-text text-theme-secondary shadow-md' : 'text-theme-muted hover:text-theme-text hover:bg-white border border-transparent hover:border-theme-border'}`}
+                            className={`flex items-center gap-[12px] px-[16px] py-[10px] rounded-[10px] text-[14px] font-bold transition-all ${adminTab === 'collections' ? 'bg-theme-text text-theme-secondary shadow-md' : 'text-theme-muted hover:text-theme-text hover:bg-theme-secondary border border-transparent hover:border-theme-border'}`}
                           >
                             <Layers size={18} /> Collections
                           </button>
@@ -849,7 +1016,7 @@ export default function App() {
                         <div className="mt-[40px] md:mt-auto">
                           <button 
                             onClick={() => signOut(auth)} 
-                            className="flex items-center gap-[12px] px-[16px] py-[10px] text-[14px] font-bold text-theme-muted hover:text-red-500 hover:bg-red-50 rounded-[10px] transition-colors w-full text-left"
+                            className="flex items-center gap-[12px] px-[16px] py-[10px] text-[14px] font-bold text-theme-muted hover:text-red-500 hover:bg-red-50 rounded-[10px] transition-colors w-full text-start"
                           >
                             <LogOut size={18} /> Déconnexion
                           </button>
@@ -861,24 +1028,24 @@ export default function App() {
                         {adminTab === 'dashboard' && (
                           <div className="flex flex-col gap-[25px]">
                             <div className="grid grid-cols-1 sm:grid-cols-3 gap-[25px]">
-                              <div className="bg-white border border-theme-border rounded-[16px] p-[24px] relative overflow-hidden shadow-sm">
+                              <div className="bg-theme-secondary border border-theme-border rounded-[16px] p-[24px] relative overflow-hidden shadow-sm">
                                 <div className="text-[11px] font-bold text-theme-muted mb-[15px] tracking-[1.5px] uppercase">Total commandes</div>
                                 <div className="text-[36px] font-serif font-normal leading-none tracking-tight">{orders.length}</div>
-                                <ShoppingBag className="absolute right-4 top-1/2 -translate-y-1/2 text-theme-border opacity-50" size={80} strokeWidth={1} />
+                                <ShoppingBag className="absolute end-4 top-1/2 -translate-y-1/2 text-theme-border opacity-50" size={80} strokeWidth={1} />
                               </div>
-                              <div className="bg-white border border-theme-border rounded-[16px] p-[24px] relative overflow-hidden shadow-sm">
+                              <div className="bg-theme-secondary border border-theme-border rounded-[16px] p-[24px] relative overflow-hidden shadow-sm">
                                 <div className="text-[11px] font-bold text-theme-muted mb-[15px] tracking-[1.5px] uppercase">Chiffre d'affaires</div>
                                 <div className="text-[36px] font-serif font-normal text-[#e67e22] leading-none tracking-tight">{orders.filter(o => o.status === 'delivered').reduce((acc, curr) => acc + curr.totalPrice, 0)} <span className="text-[20px] font-sans font-bold">DA</span></div>
-                                <span className="absolute right-4 top-1/2 -translate-y-1/2 text-theme-border text-[80px] font-light leading-none opacity-50">$</span>
+                                <span className="absolute end-4 top-1/2 -translate-y-1/2 text-theme-border text-[80px] font-light leading-none opacity-50">$</span>
                               </div>
-                              <div className="bg-white border border-theme-border rounded-[16px] p-[24px] relative overflow-hidden shadow-sm">
+                              <div className="bg-theme-secondary border border-theme-border rounded-[16px] p-[24px] relative overflow-hidden shadow-sm">
                                 <div className="text-[11px] font-bold text-theme-muted mb-[15px] tracking-[1.5px] uppercase">En attente d'expédition</div>
                                 <div className="text-[36px] font-serif font-normal leading-none tracking-tight">{orders.filter(o => o.status === 'pending').length}</div>
-                                <Activity className="absolute right-4 top-1/2 -translate-y-1/2 text-theme-border opacity-50" size={80} strokeWidth={1} />
+                                <Activity className="absolute end-4 top-1/2 -translate-y-1/2 text-theme-border opacity-50" size={80} strokeWidth={1} />
                               </div>
                             </div>
                             
-                            <div className="bg-white border border-theme-border rounded-[16px] p-[30px] min-h-[400px] shadow-sm flex flex-col">
+                            <div className="bg-theme-secondary border border-theme-border rounded-[16px] p-[30px] min-h-[400px] shadow-sm flex flex-col">
                                <div className="flex items-center gap-[8px] text-[14px] font-bold text-theme-text mb-[40px]">
                                  <Activity size={18} className="text-[#e67e22]" /> Évolution des ventes (DA)
                                </div>
@@ -902,14 +1069,14 @@ export default function App() {
                               </div>
                             </div>
 
-                            <div className="border border-theme-border rounded-[16px] bg-white overflow-hidden shadow-sm">
-                              <table className="w-full text-left text-[13px]">
-                                <thead className="bg-[#f8f9fa] border-b border-theme-border">
+                            <div className="border border-theme-border rounded-[16px] bg-theme-secondary overflow-hidden shadow-sm">
+                              <table className="w-full text-start text-[13px]">
+                                <thead className="bg-theme-bg/50 border-b border-theme-border">
                                   <tr>
                                     <th className="p-[15px] font-bold text-theme-muted">Image</th>
                                     <th className="p-[15px] font-bold text-theme-muted">Produit (ID)</th>
                                     <th className="p-[15px] font-bold text-theme-muted">Prix</th>
-                                    <th className="p-[15px] font-bold text-theme-muted text-right">Actions</th>
+                                    <th className="p-[15px] font-bold text-theme-muted text-end">Actions</th>
                                   </tr>
                                 </thead>
                                 <tbody>
@@ -938,7 +1105,7 @@ export default function App() {
                                         <div className="text-[12px] text-theme-muted font-mono">{p.id} - {p.category}</div>
                                       </td>
                                       <td className="p-[15px] font-bold text-theme-text">{p.price} DA</td>
-                                      <td className="p-[15px] text-right flex gap-2 justify-end">
+                                      <td className="p-[15px] text-end flex gap-2 justify-end">
                                         <button 
                                           className="text-theme-muted hover:text-theme-primary bg-theme-bg hover:bg-theme-bg/80 p-[8px] rounded-[8px] transition-colors inline-flex border border-theme-border"
                                           onClick={() => {
@@ -982,7 +1149,7 @@ export default function App() {
                         )}
 
                         {adminTab === 'collections' && (
-                           <div className="flex flex-col items-center justify-center py-[80px] text-center bg-white border border-theme-border rounded-[16px] shadow-sm">
+                           <div className="flex flex-col items-center justify-center py-[80px] text-center bg-theme-secondary border border-theme-border rounded-[16px] shadow-sm">
                              <Package size={56} className="text-theme-border mb-[20px]" strokeWidth={1} />
                              <h3 className="text-[20px] font-serif font-bold text-theme-text mb-[8px]">Bientôt disponible</h3>
                              <p className="text-[14px] text-theme-muted max-w-[300px]">Cette fonctionnalité sera disponible dans une prochaine mise à jour.</p>
@@ -990,18 +1157,18 @@ export default function App() {
                         )}
 
                         {adminTab === 'commandes' && (
-                          <div className="bg-white border border-theme-border rounded-[16px] shadow-sm overflow-hidden min-h-[500px]">
-                            <div className="p-[20px] border-b border-theme-border bg-[#fafafa]">
+                          <div className="bg-theme-secondary border border-theme-border rounded-[16px] shadow-sm overflow-hidden min-h-[500px]">
+                            <div className="p-[20px] border-b border-theme-border bg-theme-bg">
                               <h3 className="font-bold text-[18px]">Liste des commandes</h3>
                             </div>
                             <div className="overflow-x-auto">
-                              <table className="w-full text-[14px] text-left">
+                              <table className="w-full text-[14px] text-start">
                                 <thead>
                                   <tr className="bg-theme-bg/50 border-b border-theme-border text-[12px] uppercase tracking-wider text-theme-muted">
                                     <th className="p-[15px] font-bold">Client / Réf</th>
                                     <th className="p-[15px] font-bold">Date</th>
                                     <th className="p-[15px] font-bold">Ville</th>
-                                    <th className="p-[15px] font-bold text-right">Total</th>
+                                    <th className="p-[15px] font-bold text-end">Total</th>
                                     <th className="p-[15px] font-bold text-center">Status</th>
                                     <th className="p-[15px] font-bold">Actions</th>
                                   </tr>
@@ -1019,7 +1186,7 @@ export default function App() {
                                         <div className="font-bold text-theme-text">{o.city}</div>
                                         <div className="text-[12px] text-theme-muted max-w-[150px] truncate" title={o.address}>{o.address}</div>
                                       </td>
-                                      <td className="p-[15px] font-bold text-theme-text text-right">{o.totalPrice} DA</td>
+                                      <td className="p-[15px] font-bold text-theme-text text-end">{o.totalPrice} DA</td>
                                       <td className="p-[15px] text-center">
                                         <span className={`px-[8px] py-[4px] rounded-[6px] text-[11px] font-bold uppercase tracking-wider ${o.status === 'delivered' ? 'bg-green-100 text-green-700' : o.status === 'cancelled' ? 'bg-red-100 text-red-700' : 'bg-orange-100 text-orange-700'}`}>
                                           {o.status}
@@ -1069,6 +1236,7 @@ export default function App() {
         onClose={() => setIsCartOpen(false)}
         cart={cart}
         onRemove={removeFromCart}
+        lang={lang}
         onCheckout={() => {
           setIsCartOpen(false);
           setView('checkout');
@@ -1088,30 +1256,18 @@ export default function App() {
           <motion.div 
             key="mobile-drawer"
             initial={{ x: '-100%' }} animate={{ x: 0 }} exit={{ x: '-100%' }} transition={{ type: 'spring', damping: 25, stiffness: 200 }}
-            className="fixed top-0 left-0 h-full w-[280px] bg-theme-bg z-50 shadow-2xl flex flex-col border-r border-theme-border md:hidden"
+            className="fixed top-0 start-0 h-full w-[280px] bg-theme-bg z-50 shadow-2xl flex flex-col border-e border-theme-border md:hidden"
           >
               <div className="p-[20px] bg-theme-bg border-b border-theme-border flex justify-between items-center shrink-0">
                 <span className="font-serif text-[18px] font-bold text-theme-text tracking-tight">Menu</span>
-                <button onClick={() => setIsMobileMenuOpen(false)} className="hover:text-theme-primary bg-white p-1.5 rounded-full shadow-sm ring-1 ring-theme-border"><X size={16} /></button>
+                <button onClick={() => setIsMobileMenuOpen(false)} className="hover:text-theme-primary bg-theme-secondary p-1.5 rounded-full shadow-sm ring-1 ring-theme-border"><X size={16} /></button>
               </div>
 
               <div className="flex-grow overflow-y-auto p-[20px] flex flex-col gap-[16px]">
-                <button onClick={() => { setView('home'); setIsMobileMenuOpen(false); }} className={`w-full text-left font-bold text-[16px] py-[10px] border-b border-theme-border/50 ${view === 'home' ? 'text-theme-primary' : 'text-theme-text'}`}>{t.home[lang]}</button>
-                <button onClick={() => { setView('products'); setIsMobileMenuOpen(false); }} className={`w-full text-left font-bold text-[16px] py-[10px] border-b border-theme-border/50 ${view === 'products' ? 'text-theme-primary' : 'text-theme-text'}`}>{t.products[lang]}</button>
+                <button onClick={() => { setView('home'); setIsMobileMenuOpen(false); }} className={`w-full text-start font-bold text-[16px] py-[10px] border-b border-theme-border/50 ${view === 'home' ? 'text-theme-primary' : 'text-theme-text'}`}>{t.home}</button>
+                <button onClick={() => { setCategory('all'); setView('products'); setIsMobileMenuOpen(false); }} className={`w-full text-start font-bold text-[16px] py-[10px] border-b border-theme-border/50 ${view === 'products' && category === 'all' ? 'text-theme-primary' : 'text-theme-text'}`}>{t.products}</button>
                 
-                <div className="mt-[10px]">
-                  <h3 className="text-[12px] font-bold uppercase tracking-wider text-theme-muted mb-[10px]">{t.categories[lang]}</h3>
-                  <ul className="flex flex-col gap-[4px]">
-                    {CATEGORIES_LIST.map(c => (
-                      <li key={`mobile-cat-${c.id}`}>
-                        <button onClick={() => { setCategory(c.id as Category); setView('products'); setIsMobileMenuOpen(false); }} className="w-full text-left flex items-center justify-between py-[8px] text-[14px]">
-                          <span className={`${category === c.id && view === 'products' ? 'text-theme-primary font-bold' : 'text-theme-text font-medium'}`}>{c.fr}</span>
-                          <span className="text-[11px] text-theme-muted">{c.ar}</span>
-                        </button>
-                      </li>
-                    ))}
-                  </ul>
-                </div>
+                <button onClick={() => { setView('categories'); setIsMobileMenuOpen(false); }} className={`w-full text-start font-bold text-[16px] py-[10px] border-b border-theme-border/50 ${view === 'categories' ? 'text-theme-primary' : 'text-theme-text'}`}>{t.categories}</button>
               </div>
             </motion.div>
         )}
@@ -1128,15 +1284,15 @@ export default function App() {
               initial={{ scale: 0.95, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.95, opacity: 0 }}
-              className="bg-white rounded-[24px] w-full max-w-[500px] overflow-hidden"
+              className="bg-theme-secondary rounded-[24px] w-full max-w-[500px] overflow-hidden flex flex-col max-h-[90vh]"
             >
-              <div className="p-[20px] border-b border-theme-border flex justify-between items-center bg-theme-bg">
+              <div className="p-[20px] border-b border-theme-border flex justify-between items-center bg-theme-bg shrink-0">
                 <h2 className="font-bold text-[18px]">Nouveau Produit</h2>
-                <button onClick={() => setIsNewProductModalOpen(false)} className="p-1 hover:bg-white rounded-full transition-colors border border-transparent hover:border-theme-border shadow-sm">
+                <button onClick={() => setIsNewProductModalOpen(false)} className="p-1 hover:bg-theme-secondary rounded-full transition-colors border border-transparent hover:border-theme-border shadow-sm">
                   <X size={20} />
                 </button>
               </div>
-              <form onSubmit={handleNewProductSubmit} className="p-[24px] flex flex-col gap-4 text-[14px]">
+              <form onSubmit={handleNewProductSubmit} className="p-[24px] flex flex-col gap-4 text-[14px] overflow-y-auto">
                 <div>
                   <div className="flex justify-between mb-1">
                     <label className="block text-[12px] font-bold text-theme-muted uppercase tracking-wider">Nom (Français) *</label>
@@ -1149,31 +1305,31 @@ export default function App() {
                       {isGeneratingMetadata ? <Loader2 size={12} className="animate-spin" /> : <Sparkles size={12} />} IA Auto-complet
                     </button>
                   </div>
-                  <input required className="w-full border border-theme-border rounded-[12px] p-[12px] bg-theme-bg focus:bg-white outline-none transition-colors" value={newProduct.nameFr || ''} onChange={e => setNewProduct({...newProduct, nameFr: e.target.value})} onBlur={() => { if(newProduct.nameFr && !newProduct.nameAr && !newProduct.descriptionFr) generateMetadataForProduct(newProduct.nameFr); }} />
+                  <input required className="w-full border border-theme-border rounded-[12px] p-[12px] bg-theme-bg focus:bg-theme-secondary outline-none transition-colors" value={newProduct.nameFr || ''} onChange={e => setNewProduct({...newProduct, nameFr: e.target.value})} onBlur={() => { if(newProduct.nameFr && !newProduct.nameAr && !newProduct.descriptionFr) generateMetadataForProduct(newProduct.nameFr); }} />
                 </div>
                 <div>
                   <label className="block text-[12px] font-bold text-theme-muted mb-1 uppercase tracking-wider">Nom (Arabe) *</label>
-                  <input required dir="rtl" className="w-full border border-theme-border rounded-[12px] p-[12px] bg-theme-bg focus:bg-white outline-none transition-colors" value={newProduct.nameAr || ''} onChange={e => setNewProduct({...newProduct, nameAr: e.target.value})} />
+                  <input required dir="rtl" className="w-full border border-theme-border rounded-[12px] p-[12px] bg-theme-bg focus:bg-theme-secondary outline-none transition-colors" value={newProduct.nameAr || ''} onChange={e => setNewProduct({...newProduct, nameAr: e.target.value})} />
                 </div>
                 <div className="flex gap-4">
                   <div className="flex-1">
                     <label className="block text-[12px] font-bold text-theme-muted mb-1 uppercase tracking-wider">Prix (DA) *</label>
-                    <input required type="number" min="0" className="w-full border border-theme-border rounded-[12px] p-[12px] bg-theme-bg focus:bg-white outline-none transition-colors" value={newProduct.price || ''} onChange={e => setNewProduct({...newProduct, price: Number(e.target.value)})} />
+                    <input required type="number" min="0" className="w-full border border-theme-border rounded-[12px] p-[12px] bg-theme-bg focus:bg-theme-secondary outline-none transition-colors" value={newProduct.price || ''} onChange={e => setNewProduct({...newProduct, price: Number(e.target.value)})} />
                   </div>
                   <div className="flex-1">
                     <label className="block text-[12px] font-bold text-theme-muted mb-1 uppercase tracking-wider">Catégorie *</label>
-                    <select required className="w-full border border-theme-border rounded-[12px] p-[12px] bg-theme-bg focus:bg-white outline-none transition-colors" value={newProduct.category || 'divers'} onChange={e => setNewProduct({...newProduct, category: e.target.value as Category})}>
+                    <select required className="w-full border border-theme-border rounded-[12px] p-[12px] bg-theme-bg focus:bg-theme-secondary outline-none transition-colors" value={newProduct.category || 'divers'} onChange={e => setNewProduct({...newProduct, category: e.target.value as Category})}>
                       {CATEGORIES_LIST.map(c => <option key={c.id} value={c.id}>{c.fr}</option>)}
                     </select>
                   </div>
                 </div>
                 <div>
                   <label className="block text-[12px] font-bold text-theme-muted mb-1 uppercase tracking-wider">Description (Français)</label>
-                  <textarea rows={2} className="w-full border border-theme-border rounded-[12px] p-[12px] bg-theme-bg focus:bg-white outline-none transition-colors resize-none" value={newProduct.descriptionFr || ''} onChange={e => setNewProduct({...newProduct, descriptionFr: e.target.value})} />
+                  <textarea rows={2} className="w-full border border-theme-border rounded-[12px] p-[12px] bg-theme-bg focus:bg-theme-secondary outline-none transition-colors resize-none" value={newProduct.descriptionFr || ''} onChange={e => setNewProduct({...newProduct, descriptionFr: e.target.value})} />
                 </div>
                 <div>
                   <label className="block text-[12px] font-bold text-theme-muted mb-1 uppercase tracking-wider">Description (Arabe)</label>
-                  <textarea rows={2} dir="rtl" className="w-full border border-theme-border rounded-[12px] p-[12px] bg-theme-bg focus:bg-white outline-none transition-colors resize-none" value={newProduct.descriptionAr || ''} onChange={e => setNewProduct({...newProduct, descriptionAr: e.target.value})} />
+                  <textarea rows={2} dir="rtl" className="w-full border border-theme-border rounded-[12px] p-[12px] bg-theme-bg focus:bg-theme-secondary outline-none transition-colors resize-none" value={newProduct.descriptionAr || ''} onChange={e => setNewProduct({...newProduct, descriptionAr: e.target.value})} />
                 </div>
                 <div className="bg-theme-bg border border-theme-border border-dashed p-[16px] rounded-[12px]">
                   <label className="block text-[12px] font-bold text-theme-text mb-1 flex items-center justify-between">
@@ -1222,16 +1378,11 @@ export default function App() {
         )}
       </AnimatePresence>
 
-      <footer id="contact" className="h-[auto] md:h-[60px] bg-white border-t border-theme-border flex flex-col md:flex-row items-center justify-between px-[20px] md:px-[30px] text-[12px] text-theme-muted shrink-0 py-4 md:py-0 mt-auto">
-        <div className="mb-2 md:mb-0 text-center md:text-left font-medium">© {new Date().getFullYear()} Cherchell Shopping 100 DA</div>
-        <div className="flex gap-[10px] text-theme-primary font-bold mb-2 md:mb-0">
-          <span>FR</span>
-          <span>|</span>
-          <span dir="rtl">العربية</span>
-        </div>
+      <footer id="contact" className="h-[auto] md:h-[60px] bg-theme-secondary border-t border-theme-border flex flex-col md:flex-row items-center justify-between px-[20px] md:px-[30px] text-[12px] text-theme-muted shrink-0 py-4 md:py-0 mt-auto">
+        <div className="mb-2 md:mb-0 text-center md:text-start font-medium">© {new Date().getFullYear()} Cherchell Shopping 100 DA</div>
         <div className="flex items-center gap-[10px] font-medium">
           <span>Contact: +213 555 00 00 00</span>
-          <button onClick={() => navigateTo('admin')} className="text-theme-border hover:text-theme-primary ml-2 transition-colors">
+          <button onClick={() => navigateTo('admin')} className="text-theme-border hover:text-theme-primary ms-2 transition-colors">
             <LockIcon size={14} />
           </button>
         </div>
